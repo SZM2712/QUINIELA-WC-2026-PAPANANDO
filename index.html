@@ -268,7 +268,6 @@ h1 span{color:var(--gold);}
     <button class="tab" onclick="showTab('eliminatorias',this)">🔥 Eliminatorias</button>
     <button class="tab" onclick="showTab('podio',this)">🏆 Podio</button>
     <button class="tab" onclick="showTab('ranking',this)">🥇 Ranking</button>
-    <button class="tab" onclick="showTab('todos',this)">👥 Podios</button>
     <button class="tab atab" onclick="showTab('admin',this)">🔐 Admin</button>
   </div>
 
@@ -301,13 +300,6 @@ h1 span{color:var(--gold);}
       <div class="ibox">🥇 Puntos: 1ro=11pts · 2do=9pts · 3ro=8pts · 4to=5pts. El ganador se lleva el pozo completo.</div>
       <div class="pbanner" id="pbanner"></div>
       <div id="rtbl-wrap"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
-    </div>
-  </div>
-
-  <div id="tab-todos" class="view">
-    <div style="max-width:1100px;margin:0 auto;">
-      <div class="ibox">👥 Podio predicho por cada participante. 🟢 Equipo sigue vivo en esa posición · 🔴 Eliminado o no puede llegar a esa posición.</div>
-      <div class="podio-todos-grid" id="todos-grid"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
     </div>
   </div>
 
@@ -451,29 +443,30 @@ function restoreData(saved){
 
 // ── STANDINGS & BRACKET ───────────────────────────────
 function calcStandings(g){
-  const pts=[0,0,0,0],gd=[0,0,0,0];
+  const pts=[0,0,0,0],gd=[0,0,0,0],wins=[0,0,0,0];
   MATCHUPS.forEach(([i,j],mi)=>{
     const r=grResults[g][mi];
     if(!r)return;
-    if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;}
-    else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;}
+    if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;wins[i]++;}
+    else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;wins[j]++;}
     else{pts[i]++;pts[j]++;}
   });
-  standings[g]=[0,1,2,3].sort((a,b)=>pts[b]-pts[a]||gd[b]-gd[a]||a-b);
+  standings[g]=[0,1,2,3].sort((a,b)=>pts[b]-pts[a]||gd[b]-gd[a]||wins[b]-wins[a]||a-b);
 }
 
 function getBestThirds(){
   return GROUPS.map(g=>{
     const idx=standings[g][2];
-    const pts=[0,0,0,0],gd=[0,0,0,0];
+    const pts=[0,0,0,0],gd=[0,0,0,0],wins=[0,0,0,0];
     MATCHUPS.forEach(([i,j],mi)=>{
       const r=grResults[g][mi];if(!r)return;
-      if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;}
-      else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;}
+      if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;wins[i]++;}
+      else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;wins[j]++;}
       else{pts[i]++;pts[j]++;}
     });
-    return{group:g,team:TEAMS[g][idx],pts:pts[idx],gd:gd[idx]};
-  }).sort((a,b)=>b.pts-a.pts||b.gd-a.gd);
+    return{group:g,team:TEAMS[g][idx],pts:pts[idx],gd:gd[idx],wins:wins[idx]};
+  // Sort: pts → gd → wins → group letter (A beats B, etc.)
+  }).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.wins-a.wins||a.group.localeCompare(b.group));
 }
 function getQT(){return getBestThirds().slice(0,8);}
 function pickT(groups){return getQT().find(t=>groups.includes(t.group))?.team||null;}
@@ -795,7 +788,7 @@ function deriveUserPodio(u){
     const pts=[0,0,0,0],gd=[0,0,0,0];
     MATCHUPS.forEach(([i,j],mi)=>{const r=gr[g]?.[mi];if(!r)return;if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;}else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;}else{pts[i]++;pts[j]++;}});
     const idx=tmpSt[g][2];return{group:g,team:TEAMS[g][idx],pts:pts[idx],gd:gd[idx]};
-  }).sort((a,b)=>b.pts-a.pts||b.gd-a.gd).slice(0,8);
+  }).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.wins-a.wins||a.group.localeCompare(b.group)).slice(0,8);
   const usedG=new Set();
   function rt(sel){
     if(!sel)return null;
@@ -879,6 +872,11 @@ async function renderAdmin(){
       </div>
       <button class="cbtn" onclick="saveOP()">💾 Guardar Podio Oficial</button>
       <span id="op-msg" style="font-size:11px;color:#2a8a4c;margin-left:9px;"></span>
+    </div>
+
+    <div class="asec">
+      <div class="asectitle">👥 Podio de Todos los Participantes</div>
+      <div id="todos-grid-admin"><div style="text-align:center;padding:16px;color:var(--muted);font-size:11px;">Cargando...</div></div>
     </div>
 
     <div class="asec">
@@ -987,7 +985,9 @@ function calcRealStandings(g){
     else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;}
     else{pts[i]++;pts[j]++;}
   });
-  realStandings[g]=[0,1,2,3].sort((a,b)=>pts[b]-pts[a]||gd[b]-gd[a]||a-b);
+  const wins=[0,0,0,0];
+  MATCHUPS.forEach(([i,j],mi)=>{const r2=realGrResults[g]?.[mi];if(!r2)return;if(r2==='h')wins[i]++;else if(r2==='a')wins[j]++;});
+  realStandings[g]=[0,1,2,3].sort((a,b)=>pts[b]-pts[a]||gd[b]-gd[a]||wins[b]-wins[a]||a-b);
 }
 
 function getRealBestThirds(){
@@ -995,8 +995,8 @@ function getRealBestThirds(){
     const pts=[0,0,0,0],gd=[0,0,0,0];
     MATCHUPS.forEach(([i,j],mi)=>{const r=realGrResults[g]?.[mi];if(!r)return;if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;}else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;}else{pts[i]++;pts[j]++;}});
     const idx=realStandings[g]?.[2];
-    return{group:g,team:TEAMS[g][idx],pts:pts[idx]||0,gd:gd[idx]||0};
-  }).sort((a,b)=>b.pts-a.pts||b.gd-a.gd).slice(0,8);
+    return{group:g,team:TEAMS[g][idx],pts:pts[idx]||0,gd:gd[idx]||0,wins:wins2[idx]||0};
+  }).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.wins-a.wins||a.group.localeCompare(b.group)).slice(0,8);
 }
 
 function getRealKoWinner(r,i){
@@ -1168,9 +1168,9 @@ function renderRealResults(){
 }
 
 // ── PODIO DE TODOS ────────────────────────────────────
-async function renderTodos(){
-  const cont=document.getElementById('todos-grid');
-  cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div>';
+async function renderTodos(containerId='todos-grid'){
+  const cont=document.getElementById(containerId);
+  if(!cont)return;
   await loadRealResults();
   const eliminated=getRealAliveTeams();
   const realPodio=getRealKoWinner();
@@ -1223,7 +1223,7 @@ function showTab(t,btn){
   if(t==='admin')renderAdmin();
   if(t==='podio')renderPodium();
   if(t==='todos')renderTodos();
-  if(t==='admin'){renderAdmin().then(()=>setTimeout(renderRealResults,200));}
+  if(t==='admin'){renderAdmin().then(()=>{setTimeout(()=>{renderRealResults();renderTodos('todos-grid-admin');},200)});}
 }
 function resetTodo(){
   if(locked||isPast()){alert('Tu quiniela está bloqueada.');return;}

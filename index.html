@@ -414,7 +414,7 @@ async function doLogin(){
   const code=passEl.value.trim();
   if(!code){errEl.textContent='Ingresa tu código.';return;}
   // Admin
-  if(code.toLowerCase()===ADMIN_PASS.toLowerCase()){
+  if(code.trim().toLowerCase()===ADMIN_PASS.toLowerCase()){
     currentUser='__admin__';
     document.getElementById('login-screen').style.display='none';
     document.getElementById('main-app').style.display='block';
@@ -861,7 +861,7 @@ function checkAdminPass(){
   else{document.getElementById('apass-err').textContent='Contraseña incorrecta.';}
 }
 
-async function exportToExcel(){
+async function exportToExcel(){ try {
   const users = await getAllUsers();
   await loadSharedData();
   if(!users.length){alert('No hay participantes para exportar.');return;}
@@ -897,6 +897,7 @@ async function exportToExcel(){
   a.download='quiniela_papanando_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
   URL.revokeObjectURL(url);
+  }catch(e){alert('Error al exportar: '+e.message);}
 }
 
 async function hardReset(){
@@ -925,8 +926,12 @@ function resetPodio(){
 }
 
 // ── INIT ──────────────────────────────────────────────
-startCountdown();
-updatePoolDisplay();
+// Iniciar al cargar
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',function(){startCountdown();updatePoolDisplay();});
+}else{
+  startCountdown();updatePoolDisplay();
+}
 
 // Pre-seed Stefan
 (async function(){

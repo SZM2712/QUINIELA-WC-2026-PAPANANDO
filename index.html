@@ -267,7 +267,7 @@ h1 span{color:var(--gold);}
     <button class="tab active" onclick="showTab('grupos',this)">⚽ Grupos</button>
     <button class="tab" onclick="showTab('eliminatorias',this)">🔥 Eliminatorias</button>
     <button class="tab" onclick="showTab('podio',this)">🏆 Podio</button>
-    <button class="tab" onclick="showTab('ranking',this)">🥇 Ranking</button>
+    <button class="tab" id="tab-podios-btn" onclick="showTab('podios',this)">👥 Podios</button>
     <button class="tab atab" onclick="showTab('admin',this)">🔐 Admin</button>
   </div>
 
@@ -295,11 +295,18 @@ h1 span{color:var(--gold);}
     </div>
   </div>
 
-  <div id="tab-ranking" class="view">
-    <div class="rwrap">
-      <div class="ibox">🥇 Puntos: 1ro=11pts · 2do=9pts · 3ro=8pts · 4to=5pts. El ganador se lleva el pozo completo.</div>
-      <div class="pbanner" id="pbanner"></div>
-      <div id="rtbl-wrap"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
+  <div id="tab-podios" class="view">
+    <div style="max-width:1100px;margin:0 auto;">
+      <div id="podios-locked-msg" style="display:none;text-align:center;padding:40px 20px;">
+        <div style="font-size:48px;margin-bottom:12px;">⏳</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;color:var(--gold);">Los podios se revelan al inicio del Mundial</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;letter-spacing:2px;">11 de junio de 2026 · 3pm Guatemala</div>
+      </div>
+      <div id="podios-content" style="display:none;">
+        <div class="ibox">👥 Podio predicho por cada participante. 🟢 Equipo sigue vivo en esa posición · ❌ Eliminado o posición perdida.</div>
+        <div id="podios-pool" class="pbanner" style="max-width:1100px;margin:0 auto 12px;"></div>
+        <div class="podio-todos-grid" id="todos-grid-public"></div>
+      </div>
     </div>
   </div>
 
@@ -737,439 +744,38 @@ function renderPodium(){
 }
 
 // ── RANKING ───────────────────────────────────────────
-async function renderRanking(){
-  const wrap=document.getElementById('rtbl-wrap'),banner=document.getElementById('pbanner');
-  wrap.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div>';
-  const officialRaw=await stGet('official_podio')||[null,null,null,null];
-  const officialPodio=officialRaw.map(n=>n?Object.values(TEAMS).flat().find(t=>t.name===n)||null:null);
-  const users=await getAllUsers();
-  const n=users.length,total=n*ENTRY_FEE;
-  const ranked=users.map(u=>{
-    const podio=deriveUserPodio(u);
-    let pts=0;
-    podio.forEach((t,i)=>{if(t&&officialPodio[i]&&t.name===officialPodio[i].name)pts+=POS_PTS[i];});
-    return{name:u.name,pts,podio};
-  }).sort((a,b)=>b.pts-a.pts);
-  const topPts=ranked.length?ranked[0].pts:0;
-  const winners=ranked.filter(u=>u.pts===topPts&&topPts>0);
-  const prize=winners.length?total/winners.length:0;
-  if(banner)banner.innerHTML=`
-    <div class="pi"><div class="pilbl">Participantes</div><div class="pival" style="color:var(--text)">${n}</div></div>
-    <div class="pi"><div class="pilbl">Pozo Total</div><div class="pival" style="color:var(--gold)">${CURRENCY}${total.toFixed(0)}</div></div>
-    <div class="pi"><div class="pilbl">🏆 Premio</div><div class="pival" style="color:var(--gold)">${CURRENCY}${prize.toFixed(0)}</div></div>
-    ${winners.length>1?`<div class="pi"><div class="pilbl" style="color:var(--red)">⚠️ Empate</div><div class="pival" style="color:var(--red);font-size:18px">${winners.length} ganadores</div></div>`:''}`;
-  const opHTML=officialPodio.some(t=>t)?
-    `<div style="background:#0d1a12;border:1px solid #1a3a22;padding:9px 13px;margin-bottom:12px;"><div style="font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:6px;">🏆 Podio Oficial</div><div style="display:flex;gap:12px;flex-wrap:wrap;">${officialPodio.map((t,i)=>t?`<div style="text-align:center;"><div style="font-size:9px;color:${['var(--gold)','#9aa0aa','#a07040','var(--muted)'][i]}">${['1ro','2do','3ro','4to'][i]}·${POS_PTS[i]}pts</div><div style="font-size:18px">${t.flag}</div><div style="font-size:10px;font-weight:700">${t.name}</div></div>`:'').join('')}</div></div>`:
-    `<div style="background:#0d1118;border:1px solid var(--border);padding:9px 13px;margin-bottom:12px;font-size:11px;color:var(--muted);">⏳ El admin aún no ha confirmado el podio oficial.</div>`;
-  if(!n){wrap.innerHTML=opHTML+'<div style="text-align:center;padding:24px;color:var(--muted);">Aún no hay participantes.</div>';return;}
-  wrap.innerHTML=opHTML+`<table class="rtbl">
-    <thead><tr><th>Pos</th><th>Participante</th><th class="rr">Pts</th><th class="rr">Premio</th></tr></thead>
-    <tbody>${ranked.map((u,i)=>{
-      const isW=u.pts>0&&u.pts===topPts;
-      const pr=isW?`<span style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--gold)">${CURRENCY}${prize.toFixed(0)}${winners.length>1?' ÷'+winners.length:''}</span>`:'—';
-      return`<tr style="${isW?'background:#0d1a08':''}"><td class="rpos ${isW?'rgold':''}">${isW?'🏆':i+1}</td><td><div class="rname">${u.name}</div></td><td><div class="rpts">${u.pts}</div></td><td style="text-align:right">${pr}</td></tr>`;
-    }).join('')}</tbody></table>`;
-}
-
-function deriveUserPodio(u){
-  // Reconstruct bracket from saved data
-  const gr=u.grResults||{},ko=u.koResults||{};
-  const tmpSt={};
-  GROUPS.forEach(g=>{
-    const pts=[0,0,0,0],gd=[0,0,0,0];
-    MATCHUPS.forEach(([i,j],mi)=>{
-      const r=gr[g]?.[mi];if(!r)return;
-      if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;}else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;}else{pts[i]++;pts[j]++;}
-    });
-    tmpSt[g]=[0,1,2,3].sort((a,b)=>pts[b]-pts[a]||gd[b]-gd[a]||a-b);
-  });
-  const tmpThirds=GROUPS.map(g=>{
-    const pts=[0,0,0,0],gd=[0,0,0,0];
-    MATCHUPS.forEach(([i,j],mi)=>{const r=gr[g]?.[mi];if(!r)return;if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;}else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;}else{pts[i]++;pts[j]++;}});
-    const idx=tmpSt[g][2];return{group:g,team:TEAMS[g][idx],pts:pts[idx],gd:gd[idx]};
-  }).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.wins-a.wins||a.group.localeCompare(b.group)).slice(0,8);
-  const usedG=new Set();
-  function rt(sel){
-    if(!sel)return null;
-    if(sel.tf){const f=tmpThirds.find(t=>!usedG.has(t.group)&&sel.tf.includes(t.group));if(f){usedG.add(f.group);return f.team;}return null;}
-    const idx=tmpSt[sel.g]?.[sel.r];return idx!==undefined?TEAMS[sel.g][idx]:null;
-  }
-  const r32b=R32_DEF.map(d=>({home:rt(d.h),away:rt(d.a)}));
-  function gkw(bkt,ks,i){const k=ks?.[i],b=bkt?.[i];if(!k?.winner)return null;return k.winner==='h'?b?.home:b?.away;}
-  const r16b=R16_PAIRS.map(([a,b])=>({home:gkw(r32b,ko.r32,a),away:gkw(r32b,ko.r32,b)}));
-  const qfb=QF_PAIRS.map(([a,b])=>({home:gkw(r16b,ko.r16,a),away:gkw(r16b,ko.r16,b)}));
-  const sfb=SF_PAIRS.map(([a,b])=>({home:gkw(qfb,ko.qf,a),away:gkw(qfb,ko.qf,b)}));
-  const finalB={home:gkw(sfb,ko.sf,0),away:gkw(sfb,ko.sf,1)};
-  const thirdB={home:(()=>{const k=ko.sf?.[0],b=sfb?.[0];if(!k?.winner)return null;return k.winner==='h'?b?.away:b?.home;})(),away:(()=>{const k=ko.sf?.[1],b=sfb?.[1];if(!k?.winner)return null;return k.winner==='h'?b?.away:b?.home;})()};
-  const fk=ko.final?.[0];
-  const ch=fk?.winner?(fk.winner==='h'?finalB.home:finalB.away):null;
-  const fi=fk?.winner?(fk.winner==='h'?finalB.away:finalB.home):null;
-  const tk=ko.third?.[0];
-  const th=tk?.winner?(tk.winner==='h'?thirdB.home:thirdB.away):null;
-  const fo=tk?.winner?(tk.winner==='h'?thirdB.away:thirdB.home):null;
-  return[ch,fi,th,fo];
-}
-
-// ── ADMIN ─────────────────────────────────────────────
-function setRRTab(r){
-  rrAdminTab=r;
-  document.querySelectorAll('.rr-rtab').forEach(b=>{
-    const map={grupos:'Grupos',r32:'16avos',r16:'Octavos',qf:'Cuartos',sf:'Semis',third:'3er Lugar',final:'Final'};
-    b.classList.toggle('active',b.textContent===map[r]);
-  });
-  renderRealResults();
-}
-
-async function renderAdmin(){
-  const wrap=document.getElementById('admin-wrap');
-  if(!adminIn){
-    wrap.innerHTML=`<div class="abox"><div class="atitle">🔐 Admin</div><label class="ll">Contraseña</label><input class="li" id="ap" type="password" placeholder="••••••••" style="letter-spacing:1px" onkeydown="if(event.key==='Enter')chkAdmin()"><button class="lb" style="background:var(--purple)" onclick="chkAdmin()">INGRESAR</button><div class="lerr" id="aerr"></div></div>`;
+async function renderPodiosTab(){
+  // Only show after Mundial starts (same deadline as predictions close + torneo starts June 11)
+  const mundialStart = new Date('2026-06-11T19:00:00Z'); // 3pm ET = 7pm UTC
+  const started = Date.now() >= mundialStart.getTime();
+  const locked = document.getElementById('podios-locked-msg');
+  const cont = document.getElementById('podios-content');
+  if(!started){
+    if(locked)locked.style.display='block';
+    if(cont)cont.style.display='none';
     return;
   }
-  const users=await getAllUsers();
-  await loadRealResults();
-  const officialRaw=await stGet('official_podio')||[null,null,null,null];
-  wrap.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:7px;">
-      <div style="font-family:'Bebas Neue';font-size:22px;letter-spacing:2px;color:var(--purple)">Admin · Papanando</div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;">
-        <button class="abtn" onclick="renderAdmin()">↻ Actualizar</button>
-        <button class="abtn" style="border-color:#1a3a22;color:#2a8a4c" onclick="exportCSV()">📥 Exportar</button>
-        <button class="abtn" style="border-color:#3a2a50;color:#9a7ab0" onclick="adminIn=false;renderAdmin()">Salir</button>
-        <button class="abtn" style="border-color:var(--red);color:var(--red)" onclick="nukeAll()">🗑️ Borrar Todo</button>
-      </div>
-    </div>
-
-    <div class="asec">
-      <div class="asectitle">📋 Resultados Reales (Partido a Partido)</div>
-      <div class="ibox">Ingresa los resultados reales con G/E/P. Esto actualiza en tiempo real quién sigue vivo en el podio de cada participante.</div>
-      <div class="rr-rtabs">
-        ${['grupos','r32','r16','qf','sf','third','final'].map(r=>`<button class="rr-rtab ${r===rrAdminTab?'active':''}" onclick="setRRTab('${r}')">${{grupos:'Grupos',r32:'16avos',r16:'Octavos',qf:'Cuartos',sf:'Semis',third:'3er Lugar',final:'Final'}[r]}</button>`).join('')}
-      </div>
-      <div id="rr-content"></div>
-      <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button class="cbtn" onclick="saveRealResults().then(()=>{const m=document.getElementById('rr-msg');if(m){m.textContent='✓ Guardado';setTimeout(()=>{m.textContent='';},3000);}})">💾 Guardar Resultados</button>
-        <span id="rr-msg" style="font-size:11px;color:#2a8a4c;"></span>
-      </div>
-    </div>
-
-    <div class="asec">
-      <div class="asectitle">🏆 Podio Oficial</div>
-      <div class="ibox">Ingresa el resultado real cuando termine el torneo para calcular puntos.</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:7px;margin-bottom:9px;">
-        ${[0,1,2,3].map(pos=>{
-          const all=Object.values(TEAMS).flat();
-          const colors=['var(--gold)','#9aa0aa','#a07040','var(--muted)'];
-          return`<div style="background:var(--panel);border:1px solid var(--border);padding:9px;">
-            <div style="font-size:9px;letter-spacing:1px;color:${colors[pos]};text-transform:uppercase;margin-bottom:5px;">${['🥇 1er','🥈 2do','🥉 3er','4️⃣ 4to'][pos]} · ${POS_PTS[pos]}pts</div>
-            <select id="op-${pos}" style="width:100%;padding:5px;background:#1a2030;border:1px solid var(--border);color:var(--text);font-family:'Barlow Condensed',sans-serif;font-size:12px;">
-              <option value="">— Sin definir —</option>
-              ${all.map(t=>`<option value="${t.name}" ${officialRaw[pos]===t.name?'selected':''}>${t.flag} ${t.name}</option>`).join('')}
-            </select>
-          </div>`;
-        }).join('')}
-      </div>
-      <button class="cbtn" onclick="saveOP()">💾 Guardar Podio Oficial</button>
-      <span id="op-msg" style="font-size:11px;color:#2a8a4c;margin-left:9px;"></span>
-    </div>
-
-    <div class="asec">
-      <div class="asectitle">👥 Podio de Todos los Participantes</div>
-      <div id="todos-grid-admin"><div style="text-align:center;padding:16px;color:var(--muted);font-size:11px;">Cargando...</div></div>
-    </div>
-
-    <div class="asec">
-      <div class="asectitle">➕ Registrar Participante</div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-end;margin-bottom:9px;">
-        <div style="flex:1;min-width:150px;"><label class="ll">Nombre</label><input class="li" id="nn" type="text" placeholder="Ej: Juan Pérez" maxlength="40" style="margin-bottom:0;letter-spacing:1px" autocomplete="off"></div>
-        <button class="cbtn" onclick="createUser()">➕ Crear Código</button>
-      </div>
-      <div id="nr" style="display:none;background:#0d1a12;border:1px solid #1a3a22;padding:10px;">
-        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:5px;">Código generado:</div>
-        <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
-          <span id="nc" style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--gold);letter-spacing:4px;"></span>
-          <button onclick="copyCode()" style="padding:3px 10px;background:transparent;border:1px solid var(--gold);color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;cursor:pointer;">📋 COPIAR</button>
-        </div>
-        <div id="nnd" style="font-size:11px;color:var(--muted);margin-top:3px;"></div>
-      </div>
-    </div>
-
-    <div class="asec">
-      <div class="asectitle">👥 Participantes (${users.length})</div>
-      ${buildIncAlert(users)}
-      ${!users.length?'<div style="text-align:center;padding:20px;color:var(--muted);">Nadie aún.</div>':
-        `<div class="ugrid">${users.map(u=>buildUCard(u)).join('')}</div>`}
-    </div>`;
-}
-
-async function saveOP(){
-  const vals=[0,1,2,3].map(i=>document.getElementById('op-'+i)?.value||null).map(v=>v||null);
-  await stSet('official_podio',vals);
-  const m=document.getElementById('op-msg');if(m){m.textContent='✓ Guardado';setTimeout(()=>{m.textContent='';},3000);}
-}
-
-function buildIncAlert(users){
-  const past=isPast();
-  if(!past){const diff=DEADLINE.getTime()-Date.now();const d=Math.floor(diff/86400000),h=Math.floor((diff%86400000)/3600000),m=Math.floor((diff%3600000)/60000);return`<div style="background:#0d1520;border:1px solid #1a3a50;padding:8px 11px;margin-bottom:9px;font-size:11px;color:#4a7ab0;">⏳ Cierre en <strong style="color:var(--gold)">${d>0?d+'d ':''} ${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m</strong></div>`;}
-  const inc=users.filter(u=>!u.locked);
-  if(!inc.length)return`<div style="background:#0d1a12;border:1px solid #1a3a22;padding:8px 11px;margin-bottom:9px;font-size:11px;color:#2a8a4c;">✅ Todos confirmaron.</div>`;
-  return`<div style="background:#1a0808;border:1px solid var(--red);padding:9px 11px;margin-bottom:9px;"><div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:5px;">⚠️ No confirmaron — devolver Q.${ENTRY_FEE}:</div><div style="font-size:11px;line-height:1.8;">${inc.map(u=>`<strong style="color:var(--red)">• ${u.name}</strong>`).join('<br>')}</div></div>`;
-}
-
-function buildUCard(u){
-  const podio=deriveUserPodio(u);
-  const fl=podio.map(t=>t?t.flag:'❓').join(' ');
-  const sn=encodeURIComponent(u.name);
-  const lk=u.locked?'<span style="font-size:9px;padding:1px 4px;border:1px solid #1a4a2c;color:#2a8a4c;">🔒 CONFIRMADO</span>':'<span style="font-size:9px;padding:1px 4px;border:1px solid #3a3010;color:#a09020;">✏️ ABIERTO</span>';
-  return`<div class="ucard"><div class="ucard-hdr"><span class="ucard-name">👤 ${u.name}</span><button class="dbtn" onclick="delUser('${sn}')">✕</button></div>
-  <div class="ucard-body">
-    <div class="ustat"><span class="usl">Código</span><span style="font-family:'Bebas Neue';font-size:15px;color:var(--gold);letter-spacing:2px">${u.code||'—'}</span></div>
-    <div class="ustat"><span class="usl">Estado</span>${lk}</div>
-    <div class="ustat"><span class="usl">Podio predicho</span><span style="font-size:16px">${fl}</span></div>
-  </div></div>`;
-}
-
-function genCode(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
-let lastCode='';
-async function createUser(){
-  const nn=document.getElementById('nn');const name=(nn.value||'').trim();
-  if(!name){alert('Ingresa el nombre.');return;}
-  const ex=await stGet('u_'+name);if(ex){alert('Ya existe.');return;}
-  let code=genCode(),tries=0;
-  while(await stGet('c_'+code)&&tries<10){code=genCode();tries++;}
-  await stSet('c_'+code,{name,createdAt:new Date().toISOString()});
-  await stSet('u_'+name,{name,code,grResults:{},koResults:{},locked:false,savedAt:new Date().toISOString()});
-  await addIdx(name);lastCode=code;
-  document.getElementById('nr').style.display='block';
-  document.getElementById('nc').textContent=code;
-  document.getElementById('nnd').textContent='Participante: '+name;
-  nn.value='';renderAdmin();
-}
-async function copyCode(){
-  try{await navigator.clipboard.writeText(lastCode);const b=event.target;b.textContent='✅ COPIADO';setTimeout(()=>{b.textContent='📋 COPIAR';},2000);}
-  catch(e){prompt('Copia:',lastCode);}
-}
-async function delUser(enc){
-  const name=decodeURIComponent(enc);if(!confirm('¿Eliminar a '+name+'?'))return;
-  const u=await stGet('u_'+name);if(u?.code)await stDel('c_'+u.code);
-  await stDel('u_'+name);await delIdx(name);renderAdmin();
-}
-function chkAdmin(){
-  const v=document.getElementById('ap').value;
-  if(v.toLowerCase()===ADMIN_PASS.toLowerCase()){adminIn=true;initRealState();renderAdmin();}
-  else{document.getElementById('aerr').textContent='Contraseña incorrecta.';}
-}
-async function nukeAll(){
-  if(!confirm('¿BORRAR TODO?'))return;if(!confirm('¿Seguro?'))return;
-  await stDel('idx');await stDel('official_podio');
-  Object.keys(localStorage).filter(k=>k.startsWith(PFX)).forEach(k=>localStorage.removeItem(k));
-  alert('✅ Borrado.');location.reload();
-}
-async function exportCSV(){
-  const users=await getAllUsers();if(!users.length){alert('No hay datos.');return;}
-  const officialRaw=await stGet('official_podio')||[null,null,null,null];
-  const rows=[['Nombre','Código','1ro','2do','3ro','4to','Estado','Guardado']];
-  users.forEach(u=>{const p=deriveUserPodio(u);rows.push([u.name,u.code||'',p[0]?p[0].name:'—',p[1]?p[1].name:'—',p[2]?p[2].name:'—',p[3]?p[3].name:'—',u.locked?'Confirmado':'Abierto',u.savedAt?new Date(u.savedAt).toLocaleString('es'):'—']);});
-  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='papanando_'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(url);
-}
-
-// ── REAL RESULTS (ADMIN) ─────────────────────────────
-function calcRealStandings(g){
-  const pts=[0,0,0,0],gd=[0,0,0,0];
-  MATCHUPS.forEach(([i,j],mi)=>{
-    const r=realGrResults[g]?.[mi];if(!r)return;
-    if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;}
-    else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;}
-    else{pts[i]++;pts[j]++;}
-  });
-  const wins=[0,0,0,0];
-  MATCHUPS.forEach(([i,j],mi)=>{const r2=realGrResults[g]?.[mi];if(!r2)return;if(r2==='h')wins[i]++;else if(r2==='a')wins[j]++;});
-  realStandings[g]=[0,1,2,3].sort((a,b)=>pts[b]-pts[a]||gd[b]-gd[a]||wins[b]-wins[a]||a-b);
-}
-
-function getRealBestThirds(){
-  return GROUPS.map(g=>{
-    const pts=[0,0,0,0],gd=[0,0,0,0];
-    MATCHUPS.forEach(([i,j],mi)=>{const r=realGrResults[g]?.[mi];if(!r)return;if(r==='h'){pts[i]+=3;gd[i]++;gd[j]--;}else if(r==='a'){pts[j]+=3;gd[j]++;gd[i]--;}else{pts[i]++;pts[j]++;}});
-    const idx=realStandings[g]?.[2];
-    return{group:g,team:TEAMS[g][idx],pts:pts[idx]||0,gd:gd[idx]||0,wins:wins2[idx]||0};
-  }).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.wins-a.wins||a.group.localeCompare(b.group)).slice(0,8);
-}
-
-function getRealKoWinner(r,i){
-  // Build real bracket on demand
-  const realThirds=getRealBestThirds();const usedRG=new Set();
-  function rtReal(sel){
-    if(!sel)return null;
-    if(sel.tf){const f=realThirds.find(t=>!usedRG.has(t.group)&&sel.tf.includes(t.group));if(f){usedRG.add(f.group);return f.team;}return null;}
-    const idx=realStandings[sel.g]?.[sel.r];return idx!==undefined?TEAMS[sel.g][idx]:null;
+  if(locked)locked.style.display='none';
+  if(cont)cont.style.display='block';
+  // Show pool
+  const poolBanner=document.getElementById('podios-pool');
+  if(poolBanner){
+    const idx=await getIdx();const n=idx.length;const total=n*ENTRY_FEE;
+    poolBanner.innerHTML=`
+      <div class="pi"><div class="pilbl">Participantes</div><div class="pival" style="color:var(--text)">${n}</div></div>
+      <div class="pi"><div class="pilbl">Pozo Total</div><div class="pival" style="color:var(--gold)">${CURRENCY}${total.toFixed(0)}</div></div>
+      <div class="pi"><div class="pilbl">🏆 Premio</div><div class="pival" style="color:var(--gold)">${CURRENCY}${total.toFixed(0)}</div></div>
+      <div class="pi"><div class="pilbl">Sistema</div><div class="pival" style="font-size:13px;color:var(--muted)">1ro=11 · 2do=9 · 3ro=8 · 4to=5</div></div>`;
   }
-  const r32b=R32_DEF.map(d=>({home:rtReal(d.h),away:rtReal(d.a)}));
-  function gkwR(bkt,ks,i){const k=ks?.[i],b=bkt?.[i];if(!k?.winner)return null;return k.winner==='h'?b?.home:b?.away;}
-  const r16b=R16_PAIRS.map(([a,b])=>({home:gkwR(r32b,realKoResults.r32,a),away:gkwR(r32b,realKoResults.r32,b)}));
-  const qfb=QF_PAIRS.map(([a,b])=>({home:gkwR(r16b,realKoResults.r16,a),away:gkwR(r16b,realKoResults.r16,b)}));
-  const sfb=SF_PAIRS.map(([a,b])=>({home:gkwR(qfb,realKoResults.qf,a),away:gkwR(qfb,realKoResults.qf,b)}));
-  const finalB={home:gkwR(sfb,realKoResults.sf,0),away:gkwR(sfb,realKoResults.sf,1)};
-  const thirdB={
-    home:(()=>{const k=realKoResults.sf?.[0],b=sfb?.[0];if(!k?.winner)return null;return k.winner==='h'?b?.away:b?.home;})(),
-    away:(()=>{const k=realKoResults.sf?.[1],b=sfb?.[1];if(!k?.winner)return null;return k.winner==='h'?b?.away:b?.home;})()
-  };
-  const fk=realKoResults.final?.[0];
-  const ch=fk?.winner?(fk.winner==='h'?finalB.home:finalB.away):null;
-  const fi=fk?.winner?(fk.winner==='h'?finalB.away:finalB.home):null;
-  const tk=realKoResults.third?.[0];
-  const th=tk?.winner?(tk.winner==='h'?thirdB.home:thirdB.away):null;
-  const fo=tk?.winner?(tk.winner==='h'?thirdB.away:thirdB.home):null;
-  return[ch,fi,th,fo]; // real podio so far
+  await renderTodos('todos-grid-public');
 }
 
-// Returns set of team names still alive in real bracket
-function getRealAliveTeams(){
-  // A team is alive if it hasn't been eliminated yet
-  // Track who lost in each KO round
-  const eliminated=new Set();
-  const realThirds=getRealBestThirds();const usedRG=new Set();
-  function rtReal(sel){
-    if(!sel)return null;
-    if(sel.tf){const f=realThirds.find(t=>!usedRG.has(t.group)&&sel.tf.includes(t.group));if(f){usedRG.add(f.group);return f.team;}return null;}
-    const idx=realStandings[sel.g]?.[sel.r];return idx!==undefined?TEAMS[sel.g][idx]:null;
-  }
-  // Group phase: 3rd and 4th are out (unless best third)
-  const qualifiedThirdGroups=new Set(realThirds.map(t=>t.group));
-  GROUPS.forEach(g=>{
-    const st=realStandings[g];
-    // Only mark as eliminated if all group matches played
-    const allPlayed=MATCHUPS.every(([i,j],mi)=>realGrResults[g]?.[mi]);
-    if(allPlayed){
-      // 4th always out
-      eliminated.add(TEAMS[g][st[3]].name);
-      // 3rd out if not in best thirds
-      if(!qualifiedThirdGroups.has(g)) eliminated.add(TEAMS[g][st[2]].name);
-    }
-  });
-  // KO rounds: loser is out
-  const r32b=R32_DEF.map(d=>({home:rtReal(d.h),away:d.a?.tf?realThirds.find(t=>d.a.tf.includes(t.group))?.team||null:rtReal(d.a)}));
-  function processKORound(bkt,ks){
-    bkt.forEach((m,i)=>{
-      const k=ks?.[i];if(!k?.winner||!m.home||!m.away)return;
-      const loser=k.winner==='h'?m.away:m.home;
-      if(loser)eliminated.add(loser.name);
-    });
-  }
-  function gkwR(bkt,ks,i){const k=ks?.[i],b=bkt?.[i];if(!k?.winner)return null;return k.winner==='h'?b?.home:b?.away;}
-  processKORound(r32b,realKoResults.r32);
-  const r16b=R16_PAIRS.map(([a,b])=>({home:gkwR(r32b,realKoResults.r32,a),away:gkwR(r32b,realKoResults.r32,b)}));
-  processKORound(r16b,realKoResults.r16);
-  const qfb=QF_PAIRS.map(([a,b])=>({home:gkwR(r16b,realKoResults.r16,a),away:gkwR(r16b,realKoResults.r16,b)}));
-  processKORound(qfb,realKoResults.qf);
-  const sfb=SF_PAIRS.map(([a,b])=>({home:gkwR(qfb,realKoResults.qf,a),away:gkwR(qfb,realKoResults.qf,b)}));
-  // SF losers go to 3rd place, not eliminated yet
-  return eliminated;
-}
 
-// Check if a team can still reach a position
-// pos: 0=1st,1=2nd,2=3rd,3=4th
-function canStillReach(teamName,pos,eliminated){
-  if(eliminated.has(teamName))return false;
-  // If real podio already confirmed that position
-  const realPodio=getRealKoWinner();
-  if(realPodio[pos]){
-    // Position already determined
-    return realPodio[pos].name===teamName;
-  }
-  return true; // Still playing, position still open
-}
-
-async function loadRealResults(){
-  const data=await stGet('real_results');
-  if(!data)return;
-  initRealState();
-  if(data.grResults)GROUPS.forEach(g=>{if(data.grResults[g])data.grResults[g].forEach((r,i)=>{realGrResults[g][i]=r;});});
-  if(data.koResults)['r32','r16','qf','sf','final','third'].forEach(r=>{if(data.koResults[r])data.koResults[r].forEach((k,i)=>{if(realKoResults[r][i])realKoResults[r][i]={winner:k.winner||null};});});
-  GROUPS.forEach(g=>calcRealStandings(g));
-}
-async function saveRealResults(){
-  await stSet('real_results',{grResults:realGrResults,koResults:realKoResults,savedAt:new Date().toISOString()});
-}
-
-function setRealGr(g,mi,result){
-  if(!realGrResults[g])realGrResults[g]=MATCHUPS.map(()=>null);
-  realGrResults[g][mi]=realGrResults[g][mi]===result?null:result;
-  calcRealStandings(g);
-  renderRealResults();
-}
-function setRealKo(r,i,side){
-  if(!realKoResults[r])realKoResults[r]=[];
-  if(!realKoResults[r][i])realKoResults[r][i]={winner:null};
-  realKoResults[r][i].winner=realKoResults[r][i].winner===side?null:side;
-  renderRealResults();
-}
-
-function renderRealResults(){
-  const cont=document.getElementById('rr-content');if(!cont)return;
-  if(rrAdminTab==='grupos'){
-    cont.innerHTML=`<div class="real-groups-grid">${GROUPS.map(g=>{
-      if(!realGrResults[g])realGrResults[g]=MATCHUPS.map(()=>null);
-      return`<div class="gcard"><div class="ghdr"><div class="gltr">${g}</div><div class="gtitle">Grupo ${g} — Resultados Reales</div></div>
-      <div class="msec">${MATCHUPS.map(([i,j],mi)=>{
-        const r=realGrResults[g][mi];const T=TEAMS[g];
-        return`<div class="real-mrow"><div class="rmt">${T[i].flag} ${T[i].name}</div>
-        <div class="real-gep">
-          <button class="real-gbtn ${r==='h'?'sel-h':''}" onclick="setRealGr('${g}',${mi},'h')">G</button>
-          <button class="real-gbtn ${r==='d'?'sel-d':''}" onclick="setRealGr('${g}',${mi},'d')">E</button>
-          <button class="real-gbtn ${r==='a'?'sel-a':''}" onclick="setRealGr('${g}',${mi},'a')">P</button>
-        </div>
-        <div class="rmt r">${T[j].name} ${T[j].flag}</div></div>`;
-      }).join('')}</div></div>`;
-    }).join('')}</div>`;
-  }else{
-    const roundDefs={
-      r32:{n:16,lbls:R32_DEF.map(d=>d.lbl)},
-      r16:{n:8,lbls:R16_PAIRS.map((_,i)=>`P${89+i}`)},
-      qf:{n:4,lbls:['P97','P98','P99','P100']},
-      sf:{n:2,lbls:['P101','P102']},
-      third:{n:1,lbls:['P103 · 3er Lugar']},
-      final:{n:1,lbls:['P104 · FINAL 🏆']},
-    };
-    const rd=roundDefs[rrAdminTab];if(!rd)return;
-    if(!realKoResults[rrAdminTab])realKoResults[rrAdminTab]=Array(rd.n).fill(null).map(()=>({winner:null}));
-    // Build real bracket to show team names
-    const realThirds=getRealBestThirds();const usedRG=new Set();
-    function rtReal(sel){if(!sel)return null;if(sel.tf){const f=realThirds.find(t=>!usedRG.has(t.group)&&sel.tf.includes(t.group));if(f){usedRG.add(f.group);return f.team;}return null;}const idx=realStandings[sel.g]?.[sel.r];return idx!==undefined?TEAMS[sel.g][idx]:null;}
-    function gkwR(bkt,ks,i){const k=ks?.[i],b=bkt?.[i];if(!k?.winner)return null;return k.winner==='h'?b?.home:b?.away;}
-    const r32b=R32_DEF.map(d=>({home:rtReal(d.h),away:rtReal(d.a)}));
-    const r16b=R16_PAIRS.map(([a,b])=>({home:gkwR(r32b,realKoResults.r32,a),away:gkwR(r32b,realKoResults.r32,b)}));
-    const qfb=QF_PAIRS.map(([a,b])=>({home:gkwR(r16b,realKoResults.r16,a),away:gkwR(r16b,realKoResults.r16,b)}));
-    const sfb=SF_PAIRS.map(([a,b])=>({home:gkwR(qfb,realKoResults.qf,a),away:gkwR(qfb,realKoResults.qf,b)}));
-    const finalB={home:gkwR(sfb,realKoResults.sf,0),away:gkwR(sfb,realKoResults.sf,1)};
-    const thirdB={home:(()=>{const k=realKoResults.sf?.[0],b=sfb?.[0];if(!k?.winner)return null;return k.winner==='h'?b?.away:b?.home;})(),away:(()=>{const k=realKoResults.sf?.[1],b=sfb?.[1];if(!k?.winner)return null;return k.winner==='h'?b?.away:b?.home;})()};
-    const bkts={r32:r32b,r16:r16b,qf:qfb,sf:sfb,final:[finalB],third:[thirdB]};
-    const bkt2=bkts[rrAdminTab]||[];
-    cont.innerHTML=`<div class="real-ko-grid">${Array(rd.n).fill(0).map((_,idx)=>{
-      const k=realKoResults[rrAdminTab][idx]||{winner:null};
-      const h=bkt2[idx]?.home,a=bkt2[idx]?.away,w=k.winner;
-      const dis=!h&&!a;
-      return`<div class="real-ko-card"><div class="real-ko-hdr">${rd.lbls[idx]||'P'+(idx+1)}</div>
-        <div class="real-ko-body">
-          <div class="real-ko-team ${w==='h'?'winner':w?'loser':''}">${h?h.flag+'<br>'+h.name:'❓'}</div>
-          <div style="font-size:10px;color:var(--muted)">VS</div>
-          <div class="real-ko-team ${w==='a'?'winner':w?'loser':''}">${a?a.flag+'<br>'+a.name:'❓'}</div>
-        </div>
-        <div class="real-ko-gep">
-          <button class="real-ko-btn ${w==='h'?'win':''}" onclick="setRealKo('${rrAdminTab}',${idx},'h')" ${dis?'disabled':''}>${h?h.name+' Gana':'Local'}</button>
-          <button class="real-ko-btn ${w==='a'?'win':''}" onclick="setRealKo('${rrAdminTab}',${idx},'a')" ${dis?'disabled':''}>${a?a.name+' Gana':'Visitante'}</button>
-        </div>
-      </div>`;
-    }).join('')}</div>`;
-  }
-}
-
-// ── PODIO DE TODOS ────────────────────────────────────
 async function renderTodos(containerId='todos-grid'){
   const cont=document.getElementById(containerId);
   if(!cont)return;
+  cont.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);font-size:11px;">Cargando podios...</div>';
+  try{
   await loadRealResults();
   const eliminated=getRealAliveTeams();
   const realPodio=getRealKoWinner();
@@ -1210,6 +816,7 @@ async function renderTodos(containerId='todos-grid'){
       </div>
     </div>`;
   }).join('');
+  }catch(e){if(cont)cont.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted);">Error cargando. Intenta de nuevo.</div>';console.error(e);}
 }
 
 // ── TABS ──────────────────────────────────────────────
@@ -1218,11 +825,9 @@ function showTab(t,btn){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
   if(btn)btn.classList.add('active');
-  if(t==='ranking')renderRanking();
-  if(t==='admin')renderAdmin();
   if(t==='podio')renderPodium();
-  if(t==='todos')renderTodos();
-  if(t==='admin'){renderAdmin().then(()=>{setTimeout(()=>{renderRealResults();renderTodos('todos-grid-admin');},200)});}
+  if(t==='podios')renderPodiosTab();
+  if(t==='admin')renderAdmin().then(()=>setTimeout(()=>{renderRealResults();renderTodos('todos-grid-admin');},500));
 }
 function resetTodo(){
   if(locked||isPast()){alert('Tu quiniela está bloqueada.');return;}

@@ -439,12 +439,11 @@ function initState(){
 const FB_CONFIG = {
   apiKey: "AIzaSyCsy3hxB8TX_PGSC_J74hcmL2BK-nJTM2g",
   authDomain: "quiniela-papanando.firebaseapp.com",
+  databaseURL: "https://quiniela-papanando-default-rtdb.firebaseio.com",
   projectId: "quiniela-papanando",
   storageBucket: "quiniela-papanando.firebasestorage.app",
   messagingSenderId: "426699237409",
   appId: "1:426699237409:web:e2549b7745ad0399199b60",
-  measurementId: "G-1SP7852FPC"
-  
 };
 
 let db = null;
@@ -1531,16 +1530,7 @@ async function renderAdminPanel(){
         <button class="calc-btn" onclick="saveOfficialPodioAdmin()">💾 Guardar Podio Oficial</button>
         <span id="op-msg" style="font-size:11px;color:#2a8a4c;margin-left:10px;"></span>
       </div>
-      <div class="asec">
-        <div class="asec-title">📋 Resultados Reales</div>
-        <div class="info-box">Ingresa los marcadores reales. El sistema calcula los puntos automáticamente.</div>
-        <div class="rr-rtabs">${['grupos','r32','r16','qf','sf','third','final'].map(r=>`<button class="rr-rtab ${r===rrAdminRound?'active':''}" onclick="setRRTab('${r}')">${{grupos:'Grupos',r32:'16avos',r16:'Octavos',qf:'Cuartos',sf:'Semis',third:'3er Lugar',final:'Final'}[r]}</button>`).join('')}</div>
-        <div id="rr-content"></div>
-        <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <button class="calc-btn" onclick="saveAndRecalc()">💾 Guardar y Recalcular Ranking</button>
-          <span id="rr-msg" style="font-size:11px;color:#2a8a4c;"></span>
-        </div>
-      </div>
+
       <div class="asec">
         <div class="asec-title">👥 Participantes (${users.length})</div>
         ${buildIncompleteAlert(users)}

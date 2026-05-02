@@ -312,13 +312,13 @@ let officialPodio = [null, null, null, null];
 
 // ── FIREBASE ──────────────────────────────────────────
 const FB_CONFIG = {
-  apiKey: "AIzaSyCsy3hxB8TX_PGSC_J74hcmL2BK-nJTM2g",
-  authDomain: "quiniela-papanando.firebaseapp.com",
-  projectId: "quiniela-papanando",
-  storageBucket: "quiniela-papanando.firebasestorage.app",
-  messagingSenderId: "426699237409",
-  appId: "1:426699237409:web:e2549b7745ad0399199b60",
-  measurementId: "G-1SP7852FPC"
+  apiKey: "AIzaSyC6iLH3S6zt3CHKUFHCt_gZfwWnk6JlOTs",
+  authDomain: "quiniela-wc-2026.firebaseapp.com",
+  databaseURL: "https://quiniela-wc-2026-default-rtdb.firebaseio.com",
+  projectId: "quiniela-wc-2026",
+  storageBucket: "quiniela-wc-2026.firebasestorage.app",
+  messagingSenderId: "566181744168",
+  appId: "1:566181744168:web:76b6589317bdc4ae2a2f1d",
 };
 let db = null, fbInitTried = false;
 
@@ -429,9 +429,20 @@ async function doLogin(){
   }
   errEl.textContent='';btnEl.textContent='Verificando...';btnEl.disabled=true;
   try{
-    let userData=await stGet('code_'+code)||await stGet('code_'+code.toUpperCase())||await stGet('code_'+code.toLowerCase());
-    if(!userData||!userData.name){
-      errEl.textContent='Código inválido. Verifica con el administrador.';
+    // Try all case variations
+    let userData=null;
+    const attempts=[code, code.toUpperCase(), code.toLowerCase()];
+    for(const c of attempts){
+      userData=await stGet('code_'+c);
+      if(userData&&userData.name) break;
+    }
+    // If Firebase failed entirely, show helpful message
+    if(!userData){
+      errEl.textContent='Código no encontrado. Verifica que Firebase esté activo y el código sea correcto.';
+      passEl.value='';btnEl.textContent='ENTRAR →';btnEl.disabled=false;return;
+    }
+    if(!userData.name){
+      errEl.textContent='Código inválido. Contacta al administrador.';
       passEl.value='';btnEl.textContent='ENTRAR →';btnEl.disabled=false;return;
     }
     const name=userData.name;

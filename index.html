@@ -905,7 +905,7 @@ async function createU(){
   if(nr)nr.style.display='block';if(nc)nc.textContent=code;if(nnd)nnd.textContent='Participante: '+name;if(nn)nn.value='';
 }
 async function copyC(){
-  var msg='Mundial 2026 - Quiniela de Papanando\n\nHola '+lastNm+'! Tu codigo de acceso es:\n\n'+lastCd+'\n\nEntra aqui: https://szm2712.github.io/Quiniela-WC2026\n\nEntrada: Q.250 - El ganador se lleva todo el pozo!';
+  var msg='Mundial 2026 - Quiniela de Papanando\n\nHola '+lastNm+'! Tu codigo de acceso es:\n\n'+lastCd+'\n\nEntra aqui: https://szm2712.github.io/QUINIELA-WC-2026-PAPANANDO\n\nEntrada: Q.250 - El ganador se lleva todo el pozo!';
   try{await navigator.clipboard.writeText(msg);var b=event.target;b.textContent='Copiado!';setTimeout(function(){b.textContent='Copiar para WhatsApp';},2500);}
   catch(e){prompt('Copia este codigo:',lastCd);}
 }

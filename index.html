@@ -168,16 +168,12 @@ h1 span{color:var(--gold);}
   <div class="lb">
     <div class="llogo">MUNDIAL <span>2026</span></div>
     <div class="lsub">Quiniela de Papanando</div>
-    <div class="pbox">
-      <div class="plbl">Pozo Acumulado</div>
-      <div class="pamt" id="pool-amt">Q. 0</div>
-      <div class="ppl" id="pool-pl">0 participantes</div>
-    </div>
+
     <div style="text-align:center;margin-bottom:14px;">
       <img src="logo_mundial.jpg" alt="FIFA World Cup 2026" style="width:120px;height:auto;margin-bottom:4px;">
       <div style="font-size:8px;color:#3a4050;margin-top:2px;">&copy; FIFA. All rights reserved. Used for personal, non-commercial purposes only.</div>
     </div>
-    <div id="matchday" style="background:#0d1118;border:1px solid var(--border);padding:8px 10px;margin-bottom:14px;min-height:40px;"></div>
+    <div id="matchday" style="background:#0d1118;border:1px solid var(--border);padding:12px 14px;margin-bottom:14px;min-height:60px;font-size:13px;"></div>
     <label class="ll">Tu c&oacute;digo de acceso</label>
     <input class="li" id="lpass" type="text" placeholder="Ej: X7K2M9" maxlength="20" autocomplete="off" spellcheck="false">
     <button class="lbtn" id="lbtn" onclick="doLogin()">ENTRAR &rarr;</button>
@@ -385,10 +381,10 @@ async function renderMatchday(){
       });
     }
     var mid=result
-      ?'<span style="padding:0 6px;font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--gold);">'+result.h+' - '+result.a+'<\/span>'
-      :'<span style="padding:0 8px;color:var(--muted);font-size:11px;">'+match.et+' ET<\/span>';
+      ?'<span style="padding:0 6px;font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:var(--gold);">'+result.h+' - '+result.a+'<\/span>'
+      :'<span style="padding:0 8px;color:var(--muted);font-size:14px;">'+match.et+' ET<\/span>';
     h+='<div style="padding:5px 0;border-bottom:1px solid #1a2030;">';
-    h+='<div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;">';
     h+='<span style="flex:1;text-align:right;">'+match.hf+' '+match.h+'<\/span>'+mid+'<span style="flex:1;">'+match.a+' '+match.af+'<\/span>';
     h+='<\/div><div style="font-size:9px;color:var(--muted);text-align:center;">Gr.'+match.g+' &middot; '+match.v+'<\/div><\/div>';
   });

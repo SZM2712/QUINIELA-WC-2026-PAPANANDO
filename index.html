@@ -200,7 +200,7 @@ h1 span{color:var(--gold);}
       <span style="font-size:11px;color:var(--muted);" id="cd-app">...</span>
       <button onclick="confirmar()">CONFIRMAR MI QUINIELA</button>
     </div>
-    <div id="lk-locked" style="display:none;font-size:12px;color:#2a8a4c;font-weight:600;">Confirmada &mdash; solo lectura</div>
+    <div id="lk-locked" style="display:none;font-size:12px;color:#2a8a4c;font-weight:600;">Confirmada &mdash; solo lectura</div><div id="lk-ext" style="display:none;font-size:12px;color:#c07820;font-weight:600;">&#9201; Extension activa &mdash; puedes seguir editando</div>
     <div id="lk-past" style="display:none;font-size:12px;color:var(--red);">Plazo vencido</div>
   </div>
   <div class="tabs">
@@ -361,7 +361,7 @@ function assignThirds(qg){
   return res;
 }
 
-var CU=null,adm=false,uLk=false,uCd='';
+var CU=null,adm=false,uLk=false,uCd='',uExt=false; // uExt = admin granted extension
 var grSc={},koSc={},ST={},BKT={};
 var rGr={},rKo={},rSt={};
 var rrTab='grupos';
@@ -481,13 +481,14 @@ function tickCd(){
   if(diff>0)setTimeout(tickCd,1000);else applyLk();
 }
 
-function isPast(){return Date.now()>=DEADLINE.getTime();}
+function isPast(){if(uExt)return false; return Date.now()>=DEADLINE.getTime();}
 function applyLk(){
-  var dis=uLk||isPast(),past=isPast();
+  var dis=uLk||isPast(),past=isPast()&&!uExt;
   document.getElementById('lk-open').style.display=(!uLk&&!past)?'flex':'none';
-  document.getElementById('lk-locked').style.display=uLk?'flex':'none';
+  document.getElementById('lk-locked').style.display=(uLk&&!uExt)?'flex':'none';
   document.getElementById('lk-past').style.display=(!uLk&&past)?'block':'none';
-  document.getElementById('lkbar').style.background=uLk?'#0d1a12':past?'#1a0808':'#1a1020';
+  var extEl=document.getElementById('lk-ext');if(extEl)extEl.style.display=uExt?'flex':'none';
+  document.getElementById('lkbar').style.background=uExt?'#1a1500':uLk?'#0d1a12':past?'#1a0808':'#1a1020';
   document.querySelectorAll('.sinput,.ko-gbtn').forEach(function(el){el.disabled=dis;});
   var rb=document.getElementById('rbtn');if(rb)rb.disabled=dis;
 }
@@ -501,7 +502,7 @@ var saveTimer=null;
 function sched(){clearTimeout(saveTimer);saveTimer=setTimeout(doSave,900);}
 async function doSave(){
   if(!CU||CU==='__adm__')return;
-  await stS('u_'+CU,{name:CU,code:uCd,grSc:grSc,koSc:koSc,locked:uLk,savedAt:new Date().toISOString()});
+  await stS('u_'+CU,{name:CU,code:uCd,grSc:grSc,koSc:koSc,locked:uLk,extended:uExt,savedAt:new Date().toISOString()});
   await addIdx(CU);
   var el=document.getElementById('sind');
   if(el){el.style.display='inline-block';clearTimeout(el._t);el._t=setTimeout(function(){el.style.display='none';},2000);}
@@ -523,6 +524,20 @@ async function loadPool(){
 }
 
 document.addEventListener('DOMContentLoaded',function(){
+  // Pre-seed Stefan with fixed code SZ2026
+  setTimeout(async function(){
+    try{
+      var ex=await stG('c_SZ2026');
+      if(!ex){
+        await stS('c_SZ2026',{name:'Stefan Zachrisson',createdAt:new Date().toISOString()});
+        var u=await stG('u_Stefan Zachrisson');
+        if(!u){
+          await stS('u_Stefan Zachrisson',{name:'Stefan Zachrisson',code:'SZ2026',grSc:{},koSc:{},locked:false,savedAt:new Date().toISOString()});
+          await addIdx('Stefan Zachrisson');
+        }
+      }
+    }catch(e){console.warn('Pre-seed:',e.message);}
+  },2000);
   tickCd();loadPool();
   var s=localStorage.getItem(PFX+'lc');if(s)document.getElementById('lpass').value=s;
   document.getElementById('lpass').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
@@ -550,7 +565,7 @@ async function doLogin(){
     try{localStorage.setItem(PFX+'lc',uCd);}catch(e){}
     initS();
     var saved=await stG('u_'+CU);
-    if(saved){restoreD(saved);uLk=saved.locked||false;}
+    if(saved){restoreD(saved);uLk=saved.locked||false;uExt=saved.extended||false;}
     GS.forEach(function(g){recSt(g);});rebuildBkt();
     document.getElementById('utag').textContent=CU;
     document.getElementById('ls').style.display='none';
@@ -561,7 +576,7 @@ async function doLogin(){
 }
 function doLogout(){
   if(!confirm('Salir?'))return;
-  CU=null;adm=false;uLk=false;uCd='';
+  CU=null;adm=false;uLk=false;uCd='';uExt=false;
   document.getElementById('app').style.display='none';
   document.getElementById('ls').style.display='flex';
   document.getElementById('lpass').value='';
@@ -843,7 +858,7 @@ async function renderAdmin(){
   var allT=Object.values(TEAMS).flat();
   var h='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:7px;">';
   h+='<div style="font-family:\'Bebas Neue\';font-size:22px;letter-spacing:2px;color:var(--purple)">Admin Papanando<\/div>';
-  h+='<div style="display:flex;gap:5px;flex-wrap:wrap;"><button class="abtn" onclick="renderAdmin()">Actualizar<\/button><button class="abtn" style="border-color:#1a4a2c;color:#2a8a4c" onclick="rebuildIdx()">Reconstruir Indice<\/button><button class="abtn" style="border-color:#1a3a22;color:#2a8a4c" onclick="expCSV()">Exportar<\/button><button class="abtn" style="border-color:#3a2a50;color:#9a7ab0" onclick="adm=false;renderAdmin()">Salir<\/button><button class="abtn" style="border-color:var(--red);color:var(--red)" onclick="nukeAll()">Borrar Todo<\/button><\/div><\/div>';
+  h+='<div style="display:flex;gap:5px;flex-wrap:wrap;"><button class="abtn" onclick="renderAdmin()">Actualizar<\/button><button class="abtn" style="border-color:#1a4a2c;color:#2a8a4c" onclick="rebuildIdx()">Reconstruir Indice<\/button><button class="abtn" style="border-color:#1a3050;color:#4a70b0" onclick="diagFB()">Diagnostico FB<\/button><button class="abtn" style="border-color:#5a3a10;color:#c07820" onclick="clearCache()">Limpiar Cache<\/button><button class="abtn" style="border-color:#1a3a22;color:#2a8a4c" onclick="expCSV()">Exportar<\/button><button class="abtn" style="border-color:#3a2a50;color:#9a7ab0" onclick="adm=false;renderAdmin()">Salir<\/button><button class="abtn" style="border-color:var(--red);color:var(--red)" onclick="nukeAll()">Borrar Todo<\/button><\/div><\/div>';
   h+='<div class="asec"><div class="asectitle">Resultados Reales<\/div><div class="rr-rtabs">';
   ['grupos','r32','r16','qf','sf','third','final'].forEach(function(r){var lbs={grupos:'Grupos',r32:'16avos',r16:'Octavos',qf:'Cuartos',sf:'Semis',third:'3er Lugar',final:'Final'};h+='<button class="rr-rtab'+(r===rrTab?' active':'')+'" onclick="setRRTab(\''+r+'\')">'+lbs[r]+'<\/button>';});
   h+='<\/div><div id="rr-content"><\/div><div style="margin-top:10px;display:flex;align-items:center;gap:10px;"><button class="cbtn" onclick="saveRR()">Guardar Resultados<\/button><span id="rr-msg" style="font-size:11px;color:#2a8a4c;"><\/span><\/div><\/div>';
@@ -905,7 +920,7 @@ async function createU(){
   if(nr)nr.style.display='block';if(nc)nc.textContent=code;if(nnd)nnd.textContent='Participante: '+name;if(nn)nn.value='';
 }
 async function copyC(){
-  var msg='Mundial 2026 - Quiniela de Papanando\n\nHola '+lastNm+'! Tu codigo de acceso es:\n\n'+lastCd+'\n\nEntra aqui: https://szm2712.github.io/QUINIELA-WC-2026-PAPANANDO\n\nEntrada: Q.250 - El ganador se lleva todo el pozo!';
+  var msg='Mundial 2026 - Quiniela de Papanando\n\nHola '+lastNm+'! Tu codigo de acceso es:\n\n'+lastCd+'\n\nEntra aqui: https://szm2712.github.io/Quiniela-WC2026\n\nEntrada: Q.250 - El ganador se lleva todo el pozo!';
   try{await navigator.clipboard.writeText(msg);var b=event.target;b.textContent='Copiado!';setTimeout(function(){b.textContent='Copiar para WhatsApp';},2500);}
   catch(e){prompt('Copia este codigo:',lastCd);}
 }
@@ -915,13 +930,43 @@ async function delU(enc){
   await stD('u_'+name);await delIdx(name);renderAdmin();
 }
 async function unlockU(enc){
-  var name=decodeURIComponent(enc);if(!confirm('Desbloquear a '+name+'?'))return;
-  var u=await stG('u_'+name);if(u){u.locked=false;await stS('u_'+name,u);}renderAdmin();
+  var name=decodeURIComponent(enc);if(!confirm('Desbloquear quiniela de '+name+' y darle extension de tiempo?'))return;
+  var u=await stG('u_'+name);
+  if(u){u.locked=false;u.extended=true;await stS('u_'+name,u);}
+  renderAdmin();
 }
 function chkAdm(){
   var v=document.getElementById('ap').value;
   if(v.toLowerCase()===APAS.toLowerCase()){adm=true;initRS();loadRD().then(function(){renderAdmin();});}
   else{document.getElementById('aerr').textContent='Contrasena incorrecta.';}
+}
+async function diagFB(){
+  var db=await getDB();
+  if(!db){alert('Sin Firebase.');return;}
+  try{
+    var snap=await window._g(window._r(db,PFX));
+    if(!snap.exists()){alert('Firebase vacio - no hay datos con prefijo '+PFX);return;}
+    var data=snap.val();
+    var keys=Object.keys(data);
+    var codes=keys.filter(function(k){return k.startsWith('c_');});
+    var users=keys.filter(function(k){return k.startsWith('u_');});
+    var idx=data['idx']||[];
+    var msg='FIREBASE DIAGNOSTICO:
+
+';
+    msg+='Codigos ('+codes.length+'): '+codes.join(', ')+'
+
+';
+    msg+='Usuarios ('+users.length+'): '+users.join(', ')+'
+
+';
+    msg+='Indice ('+idx.length+'): '+JSON.stringify(idx)+'
+
+';
+    codes.forEach(function(c){msg+='  '+c+' -> '+JSON.stringify(data[c])+'
+';});
+    alert(msg);
+  }catch(e){alert('Error: '+e.message);}
 }
 async function rebuildIdx(){
   if(!confirm('Reconstruir indice? Esto busca todos los usuarios registrados.'))return;
@@ -933,6 +978,12 @@ async function rebuildIdx(){
   await stS('idx',names);
   alert('Indice reconstruido con '+names.length+' usuarios: '+names.join(', '));
   renderAdmin();
+}
+function clearCache(){
+  var keys=Object.keys(localStorage).filter(function(k){return k.startsWith(PFX);});
+  keys.forEach(function(k){localStorage.removeItem(k);});
+  alert('Cache local limpiado ('+keys.length+' entradas). Recarga la pagina.');
+  location.reload();
 }
 async function nukeAll(){
   if(!confirm('Borrar TODO?'))return;if(!confirm('Seguro?'))return;

@@ -952,21 +952,13 @@ async function diagFB(){
     var codes=keys.filter(function(k){return k.startsWith('c_');});
     var users=keys.filter(function(k){return k.startsWith('u_');});
     var idx=data['idx']||[];
-    var msg='FIREBASE DIAGNOSTICO:
-
-';
-    msg+='Codigos ('+codes.length+'): '+codes.join(', ')+'
-
-';
-    msg+='Usuarios ('+users.length+'): '+users.join(', ')+'
-
-';
-    msg+='Indice ('+idx.length+'): '+JSON.stringify(idx)+'
-
-';
-    codes.forEach(function(c){msg+='  '+c+' -> '+JSON.stringify(data[c])+'
-';});
-    alert(msg);
+    var lines=[];
+    lines.push('FIREBASE DIAGNOSTICO:');
+    lines.push('Codigos ('+codes.length+'): '+codes.join(', '));
+    lines.push('Usuarios ('+users.length+'): '+users.join(', '));
+    lines.push('Indice ('+idx.length+'): '+JSON.stringify(idx));
+    codes.forEach(function(c){lines.push('  '+c+' -> '+JSON.stringify(data[c]));});
+    alert(lines.join('\n'));
   }catch(e){alert('Error: '+e.message);}
 }
 async function rebuildIdx(){

@@ -501,6 +501,24 @@ async function confirmar(){
 
 var saveTimer=null;
 function sched(){clearTimeout(saveTimer);saveTimer=setTimeout(doSave,900);}
+
+// Check extension status from Firebase every 30 seconds
+async function checkExt(){
+  if(!CU||CU==='__adm__')return;
+  try{
+    var u=await stG('u_'+CU);
+    if(u&&u.extended&&!uExt){
+      uExt=true;
+      uLk=false;
+      applyLk();
+      renderGG();renderKO();
+      var extEl=document.getElementById('lk-ext');
+      if(extEl)extEl.style.display='flex';
+      alert('El admin te dio una extension de tiempo. Ya puedes editar tu quiniela.');
+    }
+  }catch(e){}
+  setTimeout(checkExt,30000);
+}
 async function doSave(){
   if(!CU||CU==='__adm__')return;
   await stS('u_'+CU,{name:CU,code:uCd,grSc:grSc,koSc:koSc,locked:uLk,extended:uExt,savedAt:new Date().toISOString()});
@@ -571,7 +589,7 @@ async function doLogin(){
     document.getElementById('utag').textContent=CU;
     document.getElementById('ls').style.display='none';
     document.getElementById('app').style.display='block';
-    renderGG();renderKO();renderPodium();updKO();applyLk();
+    renderGG();renderKO();renderPodium();updKO();applyLk();setTimeout(checkExt,30000);
   }catch(e){ee.textContent='Error: '+e.message;console.error(e);}
   be.textContent='ENTRAR';be.disabled=false;
 }

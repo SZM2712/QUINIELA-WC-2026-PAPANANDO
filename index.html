@@ -901,6 +901,7 @@ async function renderAdmin(){
     h+='<\/div><div style="padding:5px 9px;display:flex;gap:5px;justify-content:flex-end;border-top:1px solid var(--border);background:#0d1118;">';
     h+='<button class="abtn" style="font-size:9px;border-color:#1a3a50;color:#4a8ab0" onclick="toggleUBkt(\''+u.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" >Ver bracket<\/button>';
     if(u.locked)h+='<button class="abtn" style="font-size:9px;border-color:#3a2a10;color:#a07030" onclick="unlockU(\''+encodeURIComponent(u.name)+'\')">Desbloquear<\/button>';
+    if(!u.data.extended){h+='<button class="abtn" style="font-size:9px;border-color:#3a5a10;color:#6a9a30" onclick="grantExt(\''+encodeURIComponent(u.name)+'\')">' +'Dar ext.<\/button>';}else{h+='<button class="abtn" style="font-size:9px;border-color:#5a3a10;color:#c07820" onclick="revokeExt(\''+encodeURIComponent(u.name)+'\')">' +'Revocar ext.<\/button>';}   
     h+='<button class="dbtn" onclick="delU(\''+encodeURIComponent(u.name)+'\')">X<\/button><\/div>';
     h+='<div class="ubkt" id="'+uid+'">'+buildUBkt(u.data)+'<\/div><\/div>';
   });
@@ -947,6 +948,23 @@ async function delU(enc){
   var name=decodeURIComponent(enc);if(!confirm('Eliminar a '+name+'?'))return;
   var u=await stG('u_'+name);if(u&&u.code)await stD('c_'+u.code);
   await stD('u_'+name);await delIdx(name);renderAdmin();
+}
+async function grantExt(enc){
+  var name=decodeURIComponent(enc);
+  if(!confirm('Dar extension a '+name+'? Podra seguir editando aunque el plazo haya vencido.'))return;
+  var u=await stG('u_'+name);
+  if(!u){alert('Usuario no encontrado.');return;}
+  u.extended=true;u.locked=false;
+  await stS('u_'+name,u);
+  alert('Extension dada. '+name+' debe recargar la pagina para editar.');
+  renderAdmin();
+}
+async function revokeExt(enc){
+  var name=decodeURIComponent(enc);
+  if(!confirm('Revocar extension de '+name+'?'))return;
+  var u=await stG('u_'+name);
+  if(u){u.extended=false;await stS('u_'+name,u);}
+  renderAdmin();
 }
 async function unlockU(enc){
   var name=decodeURIComponent(enc);if(!confirm('Desbloquear quiniela de '+name+' y darle extension de tiempo?'))return;

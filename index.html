@@ -173,10 +173,9 @@ h1 span{color:var(--gold);}
       <div class="pamt" id="pool-amt">Q. 0</div>
       <div class="ppl" id="pool-pl">0 participantes</div>
     </div>
-    <div class="cdbox">
-      <div class="cdlbl">Cierre de predicciones</div>
-      <div class="cdval" id="cd-login">...</div>
-      <div class="cdsub">11 jun 2026 &middot; 2pm ET / 3pm Guatemala</div>
+    <div style="text-align:center;margin-bottom:14px;">
+      <img src="logo_mundial.jpg" alt="FIFA World Cup 2026" style="width:120px;height:auto;margin-bottom:4px;">
+      <div style="font-size:8px;color:#3a4050;margin-top:2px;">&copy; FIFA. All rights reserved. Used for personal, non-commercial purposes only.</div>
     </div>
     <div id="matchday" style="background:#0d1118;border:1px solid var(--border);padding:8px 10px;margin-bottom:14px;min-height:40px;"></div>
     <label class="ll">Tu c&oacute;digo de acceso</label>
@@ -613,9 +612,8 @@ function fmtCd(diff){
 function tickCd(){
   var diff=DEADLINE.getTime()-Date.now();
   var col=diff<=0?'var(--red)':diff<3600000?'#c07820':'var(--gold)';
-  var e1=document.getElementById('cd-login'),e2=document.getElementById('cd-app');
-  if(e1){e1.textContent=fmtCd(diff);e1.style.color=col;}
-  if(e2){e2.textContent='Cierre: '+fmtCd(diff);e2.style.color=col;}
+  var e2=document.getElementById('cd-app');
+  if(e2){e2.textContent='Cierre grupos: '+fmtCd(diff);e2.style.color=col;}
   if(diff>0)setTimeout(tickCd,1000);else applyLk();
 }
 

@@ -367,7 +367,11 @@ async function renderMatchday(){
     return;
   }
   var rrData=null;
-  try{rrData=await stG('real_results');}catch(e){}
+  try{
+    var db=await getDB();
+    if(db){var snap=await window._g(window._r(db,PFX+'real_results'));if(snap.exists())rrData=snap.val();}
+    if(!rrData)rrData=await stG('real_results');
+  }catch(e){try{rrData=await stG('real_results');}catch(e2){}}
   var grR=rrData&&rrData.grSc?rrData.grSc:{};
   var h='<div style="font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:6px;text-align:center;">Partidos de hoy<\/div>';
   matches.forEach(function(match){

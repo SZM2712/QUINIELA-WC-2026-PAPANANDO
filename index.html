@@ -664,14 +664,26 @@ async function doSave(){
 function restoreD(s){
   if(s.grSc)GS.forEach(function(g){
     if(s.grSc[g]){
-      var arr=Array.isArray(s.grSc[g])?s.grSc[g]:Object.values(s.grSc[g]);
-      arr.forEach(function(r,i){if(r)grSc[g][i]={h:r.h!=null?r.h:null,a:r.a!=null?r.a:null};});
+      if(Array.isArray(s.grSc[g])){
+        s.grSc[g].forEach(function(r,i){if(r)grSc[g][i]={h:r.h!=null?r.h:null,a:r.a!=null?r.a:null};});
+      }else{
+        Object.keys(s.grSc[g]).forEach(function(k){
+          var i=parseInt(k,10),r=s.grSc[g][k];
+          if(!isNaN(i)&&r)grSc[g][i]={h:r.h!=null?r.h:null,a:r.a!=null?r.a:null};
+        });
+      }
     }
   });
   if(s.koSc)['r32','r16','qf','sf','final','third'].forEach(function(r){
     if(s.koSc[r]){
-      var arr=Array.isArray(s.koSc[r])?s.koSc[r]:Object.values(s.koSc[r]);
-      arr.forEach(function(k,i){if(koSc[r][i])koSc[r][i]={w:k.w||null};});
+      if(Array.isArray(s.koSc[r])){
+        s.koSc[r].forEach(function(k,i){if(koSc[r][i]&&k)koSc[r][i]={w:k.w||null};});
+      }else{
+        Object.keys(s.koSc[r]).forEach(function(key){
+          var i=parseInt(key,10),k=s.koSc[r][key];
+          if(!isNaN(i)&&koSc[r][i]&&k)koSc[r][i]={w:k.w||null};
+        });
+      }
     }
   });
 }
@@ -680,14 +692,26 @@ async function loadRD(){
   var d=await stG('real_results');if(!d)return;
   if(d.grSc)GS.forEach(function(g){
     if(d.grSc[g]){
-      var arr=Array.isArray(d.grSc[g])?d.grSc[g]:Object.values(d.grSc[g]);
-      arr.forEach(function(r,i){if(r)rGr[g][i]={h:r.h!=null?r.h:null,a:r.a!=null?r.a:null};});
+      if(Array.isArray(d.grSc[g])){
+        d.grSc[g].forEach(function(r,i){if(r)rGr[g][i]={h:r.h!=null?r.h:null,a:r.a!=null?r.a:null};});
+      }else{
+        Object.keys(d.grSc[g]).forEach(function(k){
+          var i=parseInt(k,10),r=d.grSc[g][k];
+          if(!isNaN(i)&&r)rGr[g][i]={h:r.h!=null?r.h:null,a:r.a!=null?r.a:null};
+        });
+      }
     }
   });
   if(d.koSc)['r32','r16','qf','sf','final','third'].forEach(function(r){
     if(d.koSc[r]){
-      var arr=Array.isArray(d.koSc[r])?d.koSc[r]:Object.values(d.koSc[r]);
-      arr.forEach(function(k,i){if(rKo[r][i])rKo[r][i]={w:k.w||null};});
+      if(Array.isArray(d.koSc[r])){
+        d.koSc[r].forEach(function(k,i){if(rKo[r][i]&&k)rKo[r][i]={w:k.w||null};});
+      }else{
+        Object.keys(d.koSc[r]).forEach(function(key){
+          var i=parseInt(key,10),k=d.koSc[r][key];
+          if(!isNaN(i)&&rKo[r][i]&&k)rKo[r][i]={w:k.w||null};
+        });
+      }
     }
   });
   GS.forEach(function(g){recRS(g);});

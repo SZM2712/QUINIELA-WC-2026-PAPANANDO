@@ -890,9 +890,9 @@ function renderKO(){
       var card=document.createElement('div');card.className='mcard';
       var ch='<div class="mcard-hdr"><span>'+round.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+round.vs[idx]+'<\/span><\/div>';
       ch+='<div class="mcard-body">';
-      ch+='<div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(h?h.f:'?')+'<\/div><div class="mcnm">'+(h?h.n:'Por definir')+'<\/div><\/div>';
+      ch+='<div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(h?flagImg(h.f,28):'?')+'<\/div><div class="mcnm">'+(h?h.n:'Por definir')+'<\/div><\/div>';
       ch+='<div style="font-size:10px;color:var(--muted);padding:0 4px;">VS<\/div>';
-      ch+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(a?a.f:'?')+'<\/div><div class="mcnm">'+(a?a.n:'Por definir')+'<\/div><\/div>';
+      ch+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(a?flagImg(a.f,28):'?')+'<\/div><div class="mcnm">'+(a?a.n:'Por definir')+'<\/div><\/div>';
       ch+='<\/div><div class="ko-gep">';
       ch+='<button class="ko-gbtn'+(w==='h'?' win':'')+'" onclick="setKo(\''+round.id+'\','+idx+',\'h\')"'+(dis?' disabled':'')+'>← '+(h?h.n:'Local')+'<\/button>';
       ch+='<button class="ko-gbtn'+(w==='a'?' win':'')+'" onclick="setKo(\''+round.id+'\','+idx+',\'a\')"'+(dis?' disabled':'')+'>'+( a?a.n:'Visit.')+' →<\/button>';
@@ -995,9 +995,9 @@ function renderRS(){
     Array(rd.n).fill(0).forEach(function(x,idx){
       var k=rKo[rrTab][idx]||{w:null},m2=rd.bk[idx]||{h:null,a:null},hm=m2.h,am=m2.a,w=k.w;
       h+='<div class="mcard"><div class="mcard-hdr"><span>'+rd.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+rd.vs[idx]+'<\/span><\/div>';
-      h+='<div class="mcard-body"><div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(hm?hm.f:'?')+'<\/div><div class="mcnm">'+(hm?hm.n:'Por definir')+'<\/div><\/div>';
+      h+='<div class="mcard-body"><div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(hm?flagImg(hm.f,28):'?')+'<\/div><div class="mcnm">'+(hm?hm.n:'Por definir')+'<\/div><\/div>';
       h+='<div style="font-size:10px;color:var(--muted);padding:0 4px;">VS<\/div>';
-      h+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(am?am.f:'?')+'<\/div><div class="mcnm">'+(am?am.n:'Por definir')+'<\/div><\/div><\/div>';
+      h+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(am?flagImg(am.f,28):'?')+'<\/div><div class="mcnm">'+(am?am.n:'Por definir')+'<\/div><\/div><\/div>';
       h+='<div class="ko-gep"><button class="ko-gbtn'+(w==='h'?' win':'')+'" onclick="setRKo(\''+rrTab+'\','+idx+',\'h\')"'+((!hm&&!am)?' disabled':'')+'>← '+(hm?hm.n:'Local')+'<\/button>';
       h+='<button class="ko-gbtn'+(w==='a'?' win':'')+'" onclick="setRKo(\''+rrTab+'\','+idx+',\'a\')"'+((!hm&&!am)?' disabled':'')+'>'+( am?am.n:'Visit.')+' →<\/button><\/div><\/div>';
     });

@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--gold:#D4AF37;--green:#1a6b3c;--red:#C0392B;--dark:#0a0a0a;--dark3:#1a1f26;--panel:#141920;--border:#2a3040;--text:#e8e0d0;--muted:#6a7585;--purple:#7a4aaa;
---wc-green:#2a9d5c;--wc-orange:#e8702a;--wc-blue:#2a72b5;--wc-purple:#9a4ab0;--wc-red:#d83a3a;}
+--m1:#e84545;--m2:#f2994a;--m3:#f2c94c;--m4:#6fcf97;--m5:#2d9cdb;--m6:#9b51e0;--m7:#eb5dab;--m8:#56ccf2;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--dark);color:var(--text);font-family:'Barlow Condensed',sans-serif;min-height:100vh;}
 #ls{position:fixed;inset:0;background:var(--dark);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -30,7 +30,8 @@ body{background:var(--dark);color:var(--text);font-family:'Barlow Condensed',san
 .lbtn:disabled{opacity:.6;}
 .lerr{color:var(--red);font-size:11px;margin-top:7px;min-height:15px;}
 header{position:relative;text-align:center;padding:22px 20px 14px;border-bottom:1px solid var(--border);}
-header::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:180px;height:3px;background:linear-gradient(90deg,var(--wc-green),var(--wc-orange),var(--gold),var(--wc-blue),var(--wc-purple));}
+header::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:128px;height:8px;background:
+linear-gradient(90deg,var(--m1) 0 16px,var(--m2) 16px 32px,var(--m3) 32px 48px,var(--m4) 48px 64px,var(--m5) 64px 80px,var(--m6) 80px 96px,var(--m7) 96px 112px,var(--m8) 112px 128px);}
 h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(30px,5vw,64px);letter-spacing:4px;line-height:.9;}
 h1 span{color:var(--gold);}
 .hsub{font-size:10px;color:var(--muted);letter-spacing:3px;margin-top:5px;}
@@ -43,11 +44,11 @@ h1 span{color:var(--gold);}
 .tabs{display:flex;justify-content:center;gap:3px;padding:9px;flex-wrap:wrap;}
 .tab{padding:5px 13px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;}
 .tab.active{background:var(--gold);color:var(--dark);border-color:var(--gold);}
-.tabs .tab:nth-of-type(1).active{background:var(--wc-green);border-color:var(--wc-green);}
-.tabs .tab:nth-of-type(2).active{background:var(--wc-orange);border-color:var(--wc-orange);}
-.tabs .tab:nth-of-type(3).active{background:var(--gold);border-color:var(--gold);}
-.tabs .tab:nth-of-type(4).active{background:var(--wc-blue);border-color:var(--wc-blue);}
-.tabs .tab:nth-of-type(5).active{background:var(--wc-purple);border-color:var(--wc-purple);}
+.tabs .tab:nth-of-type(1).active{background:var(--m4);border-color:var(--m4);color:var(--dark);}
+.tabs .tab:nth-of-type(2).active{background:var(--m2);border-color:var(--m2);color:var(--dark);}
+.tabs .tab:nth-of-type(3).active{background:var(--gold);border-color:var(--gold);color:var(--dark);}
+.tabs .tab:nth-of-type(4).active{background:var(--m5);border-color:var(--m5);color:var(--dark);}
+.tabs .tab:nth-of-type(5).active{background:var(--m6);border-color:var(--m6);color:#fff;}
 .tab.atab{border-color:#3a2a50;color:#9a7ab0;}
 .tab.atab.active{background:var(--purple);color:#fff;border-color:var(--purple);}
 .view{display:none;padding:0 10px 55px;}
@@ -95,7 +96,8 @@ h1 span{color:var(--gold);}
 .ko-team-lbl{flex:1;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .ko-team-lbl.r{text-align:right;}
 .ko-winner-row{padding:4px 10px;background:#0a1208;border-top:1px solid #1a3a22;font-size:10px;color:#2a8a4c;font-weight:700;text-align:center;}
-.rank-banner{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:9px;background:linear-gradient(135deg,#0d1a12,#0a1208);border:1px solid #1a3a22;padding:11px 14px;margin-bottom:13px;max-width:1100px;margin-left:auto;margin-right:auto;}
+.rank-banner{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:9px;background:linear-gradient(135deg,#0d1a12,#0a1208);border:1px solid #1a3a22;padding:11px 14px;margin-bottom:13px;max-width:1100px;margin-left:auto;margin-right:auto;position:relative;}
+.rank-banner::before{content:'';position:absolute;top:-4px;left:0;width:100%;height:4px;background:repeating-linear-gradient(90deg,var(--m1) 0 12.5%,var(--m2) 12.5% 25%,var(--m3) 25% 37.5%,var(--m4) 37.5% 50%,var(--m5) 50% 62.5%,var(--m6) 62.5% 75%,var(--m7) 75% 87.5%,var(--m8) 87.5% 100%);}
 .pi{text-align:center;}.pilbl{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:2px;}
 .pival{font-family:'Bebas Neue',sans-serif;font-size:22px;line-height:1;}
 .rtbl{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);max-width:1100px;margin:0 auto;}
@@ -647,7 +649,7 @@ function renderGroup(g){
   var card=document.getElementById('gc-'+g);if(!card)return;
   var s=cSt(g,grSc),T=TEAMS[g],order=s.order;
   var b=['b1','b2','b3','b4'],rc=['q1','q2','q3',''];
-  var grpColors=['var(--wc-green)','var(--wc-orange)','var(--gold)','var(--wc-blue)','var(--wc-purple)','var(--wc-red)'];
+  var grpColors=['var(--m1)','var(--m2)','var(--m3)','var(--m4)','var(--m5)','var(--m6)','var(--m7)','var(--m8)'];
   var gColor=grpColors[GS.indexOf(g)%grpColors.length];
   card.style.borderTop='2px solid '+gColor;
   var h='<div class="ghdr"><div class="gltr" style="color:'+gColor+';">'+g+'<\/div><div class="gtitle">Grupo '+g+'<\/div><\/div>';
@@ -707,7 +709,9 @@ function renderElim(){
         var hid='ko'+r+'m'+i+'h',aid='ko'+r+'m'+i+'a';
         var phLocked=ph&&ph.locked;
         var dis=phLocked;
-        grid+='<div class="mcard"><div class="mcard-hdr"><span>Partido '+(i+1)+'<\/span><\/div>';
+        var mColors=['var(--m1)','var(--m2)','var(--m3)','var(--m4)','var(--m5)','var(--m6)','var(--m7)','var(--m8)'];
+        var mColor=mColors[i%mColors.length];
+        grid+='<div class="mcard" style="border-top:2px solid '+mColor+';"><div class="mcard-hdr"><span>Partido '+(i+1)+'<\/span><\/div>';
         grid+='<div class="mcard-body"><div class="mcteam"><div class="mcfl">'+(hTeam?flagImg(hTeam.f,28):'?')+'<\/div><div class="mcnm">'+(hTeam?hTeam.n:'TBD')+'<\/div><\/div>';
         grid+='<div class="ko-vs">VS<\/div>';
         grid+='<div class="mcteam"><div class="mcfl">'+(aTeam?flagImg(aTeam.f,28):'?')+'<\/div><div class="mcnm">'+(aTeam?aTeam.n:'TBD')+'<\/div><\/div><\/div>';
@@ -2042,7 +2046,9 @@ async function renderPosiciones(){
   h+='<div class="pos-groups-grid">';
   GS.forEach(function(g){
     var st=standings[g];
-    h+='<div class="pos-group-card" style="padding:0;overflow:hidden;"><div class="pos-group-title" style="padding:8px 10px 4px;margin-bottom:0;">Grupo '+g+'<\/div>';
+    var grpColors2=['var(--m1)','var(--m2)','var(--m3)','var(--m4)','var(--m5)','var(--m6)','var(--m7)','var(--m8)'];
+    var gColor2=grpColors2[GS.indexOf(g)%grpColors2.length];
+    h+='<div class="pos-group-card" style="padding:0;overflow:hidden;border-top:2px solid '+gColor2+';"><div class="pos-group-title" style="padding:8px 10px 4px;margin-bottom:0;">Grupo '+g+'<\/div>';
     h+='<table class="sttbl" style="font-size:11px;"><thead><tr><th><\/th><th>Equipo<\/th><th>PJ<\/th><th>GF<\/th><th>DG<\/th><th>Pts<\/th><\/tr><\/thead><tbody>';
     var bClasses=['b1','b2','b3','b4'],rcClasses=['q1','q2','q3',''];
     st.forEach(function(t,i){
@@ -2151,7 +2157,9 @@ async function renderPosiciones(){
       });
       var maxMatches=Math.max.apply(null,predictions.map(function(p){return p.matches;}));
       var best=predictions.filter(function(p){return p.matches===maxMatches;});
-      h+='<div class="pos-group-card"><div class="pos-group-title">Grupo '+g+'<\/div>';
+      var grpColors3=['var(--m1)','var(--m2)','var(--m3)','var(--m4)','var(--m5)','var(--m6)','var(--m7)','var(--m8)'];
+      var gColor3=grpColors3[GS.indexOf(g)%grpColors3.length];
+      h+='<div class="pos-group-card" style="border-top:2px solid '+gColor3+';"><div class="pos-group-title">Grupo '+g+'<\/div>';
       h+='<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Mejor'+(best.length>1?'es':'')+': <span style="color:#2a8a4c;font-weight:700;">'+best.map(function(p){return p.name;}).join(', ')+'<\/span> ('+maxMatches+'\/4 posiciones)<\/div>';
       h+='<\/div>';
     });

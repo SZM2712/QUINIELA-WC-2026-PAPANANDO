@@ -205,6 +205,7 @@ h1 span{color:var(--gold);}
     <button class="tab" onclick="showTab('elim',this)">Eliminatorias</button>
     <button class="tab" onclick="showTab('podio',this)">Mi Podio</button>
     <button class="tab" onclick="showTab('podios',this)">Podios</button>
+    <button class="tab" onclick="showTab('pos',this)">Posiciones</button>
     <button class="tab atab" onclick="showTab('admin',this)">Admin</button>
   </div>
   <div id="tab-grupos" class="view active">
@@ -241,6 +242,13 @@ h1 span{color:var(--gold);}
         <div class="pbanner" id="pbanner"></div>
         <div class="ptgrid" id="tgrid"></div>
       </div>
+    </div>
+  </div>
+  <div id="tab-pos" class="view">
+    <div style="max-width:1100px;margin:0 auto;padding:12px 0;">
+      <div class="ibox">Como van los grupos y el bracket real segun los resultados que el admin ha cargado.</div>
+      <div class="rr-rtabs" id="pos-rtabs"></div>
+      <div id="pos-content"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
     </div>
   </div>
   <div id="tab-admin" class="view">
@@ -1253,6 +1261,57 @@ async function expCSV(){
   var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'});
   var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='papanando_reporte_'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(url);
 }
+var posTab='grupos';
+async function renderPosPublic(){
+  await loadRD();
+  var tabsEl=document.getElementById('pos-rtabs');
+  if(tabsEl){
+    var lbs={grupos:'Grupos',r32:'16avos',r16:'Octavos',qf:'Cuartos',sf:'Semis',third:'3er Lugar',final:'Final'};
+    tabsEl.innerHTML='';
+    ['grupos','r32','r16','qf','sf','third','final'].forEach(function(r){
+      var btn=document.createElement('button');
+      btn.className='rr-rtab'+(r===posTab?' active':'');
+      btn.textContent=lbs[r];
+      btn.onclick=function(){posTab=r;renderPosPublic();};
+      tabsEl.appendChild(btn);
+    });
+  }
+  var cont=document.getElementById('pos-content');if(!cont)return;
+  if(posTab==='grupos'){
+    var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
+    GS.forEach(function(g){
+      var T=TEAMS[g],s=cSt(g,rGr),order=s.order;
+      var b=['b1','b2','b3','b4'],rc=['q1','q2','q3',''];
+      h+='<div class="gcard"><div class="ghdr"><div class="gltr">'+g+'<\/div><div class="gtitle">Grupo '+g+'<\/div><\/div>';
+      h+='<table class="sttbl"><thead><tr><th><\/th><th>Equipo<\/th><th>PJ<\/th><th>GF<\/th><th>DG<\/th><th>Pts<\/th><\/tr><\/thead><tbody>';
+      order.forEach(function(idx,rank){
+        var pj=0;MU.forEach(function(p,mi){var sc=rGr[g][mi];if(sc&&sc.h!==null&&sc.a!==null&&(idx===p[0]||idx===p[1]))pj++;});
+        var gd=s.gd[idx];
+        h+='<tr class="'+rc[rank]+'"><td><span class="pbadge '+b[rank]+'">'+(rank+1)+'<\/span><\/td><td><div class="tcell"><span>'+flagImg(T[idx].f)+'<\/span>'+T[idx].n+'<\/div><\/td><td>'+pj+'<\/td><td>'+s.gf[idx]+'<\/td><td>'+(gd>=0?'+':'')+gd+'<\/td><td class="stpts">'+s.pts[idx]+'<\/td><\/tr>';
+      });
+      h+='<\/tbody><\/table><\/div>';
+    });
+    h+='<\/div>';
+    cont.innerHTML=h;
+  }else{
+    var rst={};GS.forEach(function(g){rst[g]=rSt[g]||[0,1,2,3];});
+    var rb=buildBkt(rGr,rst,rKo);
+    var kRounds={r32:{n:16,lbls:R32.map(function(d){return d.l;}),vs:R32.map(function(d){return d.v;}),bk:rb.r32},r16:{n:8,lbls:R16P.map(function(p,i){return'P'+(89+i);}),vs:R16V,bk:rb.r16},qf:{n:4,lbls:['P97','P98','P99','P100'],vs:QFV,bk:rb.qf},sf:{n:2,lbls:['P101','P102'],vs:SFV,bk:rb.sf},third:{n:1,lbls:['P103'],vs:['Dallas-ATT'],bk:rb.third},final:{n:1,lbls:['P104'],vs:['Nueva York-MetLife'],bk:rb.final}};
+    var rd=kRounds[posTab];if(!rd){cont.innerHTML='';return;}
+    var h='<div class="mgrid">';
+    Array(rd.n).fill(0).forEach(function(x,idx){
+      var k=rKo[posTab]&&rKo[posTab][idx]?rKo[posTab][idx]:{w:null},m2=rd.bk[idx]||{h:null,a:null},hm=m2.h,am=m2.a,w=k.w;
+      h+='<div class="mcard"><div class="mcard-hdr"><span>'+rd.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+rd.vs[idx]+'<\/span><\/div>';
+      h+='<div class="mcard-body"><div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(hm?flagImg(hm.f,28):'?')+'<\/div><div class="mcnm">'+(hm?hm.n:'Por definir')+'<\/div><\/div>';
+      h+='<div style="font-size:10px;color:var(--muted);padding:0 4px;">VS<\/div>';
+      h+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(am?flagImg(am.f,28):'?')+'<\/div><div class="mcnm">'+(am?am.n:'Por definir')+'<\/div><\/div><\/div>';
+      if(w){var winner=w==='h'?hm:am;h+='<div style="padding:4px 10px;background:#0a1208;border-top:1px solid #1a3a22;font-size:10px;color:#2a8a4c;font-weight:700;text-align:center;">Avanza: '+winner.n+'<\/div>';}
+      h+='<\/div>';
+    });
+    h+='<\/div>';
+    cont.innerHTML=h;
+  }
+}
 function showTab(t,btn){
   document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
   document.querySelectorAll('.view').forEach(function(x){x.classList.remove('active');});
@@ -1260,6 +1319,7 @@ function showTab(t,btn){
   if(btn)btn.classList.add('active');
   if(t==='podio')renderPodium();
   if(t==='podios')renderPodiosTab();
+  if(t==='pos')renderPosPublic();
   if(t==='admin')renderAdmin();
 }
 function resetTodo(){

@@ -577,6 +577,29 @@ function cSt(g,gr){
   var order=[0,1,2,3].sort(function(a,b){return pts[b]-pts[a]||gd[b]-gd[a]||gf[b]-gf[a]||w[b]-w[a]||a-b;});
   return{pts:pts,gd:gd,gf:gf,w:w,order:order};
 }
+function calcQualStatus(g,gr){
+  // Returns array of 4 statuses: 'q' (mathematically qualified top2), 'e' (mathematically eliminated), or null (undecided)
+  var s=cSt(g,gr);
+  var pts=s.pts;
+  var remaining=[0,0,0,0];
+  MU.forEach(function(pair,mi){
+    var rs=gr[g]?gr[g][mi]:null;
+    if(rs&&rs.h!==null&&rs.a!==null)return;
+    remaining[pair[0]]++;remaining[pair[1]]++;
+  });
+  var maxPts=pts.map(function(p,i){return p+remaining[i]*3;});
+  var minPts=pts.slice();
+  var status=[null,null,null,null];
+  for(var i=0;i<4;i++){
+    var othersMin=[0,1,2,3].filter(function(x){return x!==i;}).map(function(x){return minPts[x];});
+    var tiedOrBeatCount=othersMin.filter(function(op){return op>=maxPts[i];}).length;
+    if(tiedOrBeatCount>=2){status[i]='e';continue;}
+    var othersMax=[0,1,2,3].filter(function(x){return x!==i;}).map(function(x){return maxPts[x];});
+    var tiedOrBeatCount2=othersMax.filter(function(op){return op>=minPts[i];}).length;
+    if(tiedOrBeatCount2<=1){status[i]='q';continue;}
+  }
+  return status;
+}
 function recSt(g){var s=cSt(g,grSc);ST[g]=s.order;}
 function recRS(g){var s=cSt(g,rGr);rSt[g]=s.order;}
 
@@ -1323,10 +1346,14 @@ async function renderPosPublic(){
       var gColorP=grpColorsP[GS.indexOf(g)%grpColorsP.length];
       h+='<div class="gcard" style="border-top:2px solid '+gColorP+';"><div class="ghdr"><div class="gltr" style="color:'+gColorP+';">'+g+'<\/div><div class="gtitle">Grupo '+g+'<\/div><\/div>';
       h+='<table class="sttbl"><thead><tr><th><\/th><th>Equipo<\/th><th>PJ<\/th><th>GF<\/th><th>DG<\/th><th>Pts<\/th><\/tr><\/thead><tbody>';
+      var qs2=calcQualStatus(g,rGr);
       order.forEach(function(idx,rank){
         var pj=0;MU.forEach(function(p,mi){var sc=rGr[g][mi];if(sc&&sc.h!==null&&sc.a!==null&&(idx===p[0]||idx===p[1]))pj++;});
         var gd=s.gd[idx];
-        h+='<tr class="'+rc[rank]+'"><td><span class="pbadge '+b[rank]+'">'+(rank+1)+'<\/span><\/td><td><div class="tcell"><span>'+flagImg(T[idx].f)+'<\/span>'+T[idx].n+'<\/div><\/td><td>'+pj+'<\/td><td>'+s.gf[idx]+'<\/td><td>'+(gd>=0?'+':'')+gd+'<\/td><td class="stpts">'+s.pts[idx]+'<\/td><\/tr>';
+        var qst=qs2[idx];
+        var qBg2=qst==='q'?'background:rgba(42,138,76,0.18);':qst==='e'?'background:rgba(192,57,43,0.15);':'';
+        var qTag2=qst==='q'?' <span style="font-size:8px;color:#2a8a4c;border:1px solid #1a4a2c;padding:0 3px;">CLASIFICA<\/span>':qst==='e'?' <span style="font-size:8px;color:#e05050;border:1px solid #5a1a1a;padding:0 3px;">ELIMINADO<\/span>':'';
+        h+='<tr class="'+rc[rank]+'" style="'+qBg2+'"><td><span class="pbadge '+b[rank]+'">'+(rank+1)+'<\/span><\/td><td><div class="tcell"><span>'+flagImg(T[idx].f)+'<\/span>'+T[idx].n+qTag2+'<\/div><\/td><td>'+pj+'<\/td><td>'+s.gf[idx]+'<\/td><td>'+(gd>=0?'+':'')+gd+'<\/td><td class="stpts">'+s.pts[idx]+'<\/td><\/tr>';
       });
       h+='<\/tbody><\/table><\/div>';
     });

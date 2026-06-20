@@ -6,7 +6,8 @@
 <title>Quiniela de Papanando 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--gold:#D4AF37;--green:#1a6b3c;--red:#C0392B;--dark:#0a0a0a;--dark3:#1a1f26;--panel:#141920;--border:#2a3040;--text:#e8e0d0;--muted:#6a7585;--purple:#7a4aaa;}
+:root{--gold:#D4AF37;--green:#1a6b3c;--red:#C0392B;--dark:#0a0a0a;--dark3:#1a1f26;--panel:#141920;--border:#2a3040;--text:#e8e0d0;--muted:#6a7585;--purple:#7a4aaa;
+--m1:#e84545;--m2:#f2994a;--m3:#f2c94c;--m4:#6fcf97;--m5:#2d9cdb;--m6:#9b51e0;--m7:#eb5dab;--m8:#56ccf2;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--dark);color:var(--text);font-family:'Barlow Condensed',sans-serif;min-height:100vh;}
 #ls{position:fixed;inset:0;background:var(--dark);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -42,6 +43,11 @@ h1 span{color:var(--gold);}
 .tabs{display:flex;justify-content:center;gap:3px;padding:9px;flex-wrap:wrap;}
 .tab{padding:5px 13px;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;}
 .tab.active{background:var(--gold);color:var(--dark);border-color:var(--gold);}
+.tabs .tab:nth-of-type(1).active{background:var(--m4);border-color:var(--m4);color:var(--dark);}
+.tabs .tab:nth-of-type(2).active{background:var(--m2);border-color:var(--m2);color:var(--dark);}
+.tabs .tab:nth-of-type(3).active{background:var(--gold);border-color:var(--gold);color:var(--dark);}
+.tabs .tab:nth-of-type(4).active{background:var(--m5);border-color:var(--m5);color:var(--dark);}
+.tabs .tab:nth-of-type(5).active{background:var(--m6);border-color:var(--m6);color:#fff;}
 .tab.atab{border-color:#3a2a50;color:#9a7ab0;}
 .tab.atab.active{background:var(--purple);color:#fff;border-color:var(--purple);}
 .view{display:none;padding:0 10px 55px;}
@@ -161,6 +167,12 @@ h1 span{color:var(--gold);}
 .ubkt-ko-m{font-size:10px;padding:1px 0;display:flex;align-items:center;gap:3px;}
 .ubkt-ko-w{color:var(--gold);font-weight:700;}
 .ubkt-ko-l{opacity:.4;font-size:9px;}
+#today-banner{max-width:1100px;margin:0 auto 10px;background:linear-gradient(135deg,#1a1500,#0d0d05);border:1px solid #3a2f10;padding:10px 14px;}
+.today-banner-title{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:7px;display:flex;align-items:center;gap:6px;}
+.today-match{display:flex;align-items:center;padding:5px 0;border-bottom:1px solid #2a2410;gap:8px;font-size:12px;}
+.today-match:last-child{border-bottom:none;}
+.today-mt{flex:1;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.today-msc{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);padding:0 8px;min-width:54px;text-align:center;}
 </style>
 </head>
 <body>
@@ -200,6 +212,7 @@ h1 span{color:var(--gold);}
     <div id="lk-past" style="display:none;font-size:12px;color:var(--red);">Plazo vencido</div>
     <div id="lk-ext" style="display:none;font-size:12px;color:#c07820;font-weight:600;">&#9201; Extension activa &mdash; puedes seguir editando</div>
   </div>
+  <div id="today-banner" style="display:none;"></div>
   <div class="tabs">
     <button class="tab active" onclick="showTab('grupos',this)">Grupos</button>
     <button class="tab" onclick="showTab('elim',this)">Eliminatorias</button>
@@ -402,6 +415,27 @@ async function renderMatchday(){
   });
   cont.innerHTML=h;
   setTimeout(renderMatchday,60000);
+}
+async function renderTodayBanner(){
+  var box=document.getElementById('today-banner');if(!box)return;
+  if(!CU||CU==='__adm__'){box.style.display='none';return;}
+  var matches=getTodayMatches();
+  if(!matches.length){box.style.display='none';return;}
+  var h='<div class="today-banner-title">&#9917; Tus predicciones para hoy<\/div>';
+  matches.forEach(function(match){
+    var g=match.g,pred=null;
+    MU.forEach(function(p,mi){
+      var hn=TEAMS[g][p[0]].n,an=TEAMS[g][p[1]].n;
+      var sc=grSc[g]?grSc[g][mi]:null;
+      if(!sc||sc.h===null||sc.a===null)return;
+      if(hn===match.h&&an===match.a)pred={h:sc.h,a:sc.a};
+      else if(hn===match.a&&an===match.h)pred={h:sc.a,a:sc.h};
+    });
+    var mid=pred?(pred.h+' - '+pred.a):'<span style="color:var(--muted);font-size:11px;">Sin predecir<\/span>';
+    h+='<div class="today-match"><span class="today-mt" style="text-align:right;">'+flagImg(match.hf)+' '+match.h+'<\/span><span class="today-msc">'+mid+'<\/span><span class="today-mt">'+match.a+' '+flagImg(match.af)+'<\/span><\/div>';
+  });
+  box.innerHTML=h;
+  box.style.display='block';
 }
 var FB={
   apiKey:'AIzaSyCsy3hxB8TX_PGSC_J74hcmL2BK-nJTM2g',
@@ -781,7 +815,7 @@ async function doLogin(){
     document.getElementById('utag').textContent=CU;
     document.getElementById('ls').style.display='none';
     document.getElementById('app').style.display='block';
-    renderGG();renderKO();renderPodium();updKO();applyLk();setTimeout(checkExt,30000);
+    renderGG();renderKO();renderPodium();updKO();applyLk();renderTodayBanner();setTimeout(checkExt,30000);
   }catch(e){ee.textContent='Error: '+e.message;console.error(e);}
   be.textContent='ENTRAR';be.disabled=false;
 }
@@ -811,7 +845,10 @@ function renderGroup(g){
   var card=document.getElementById('gc-'+g);if(!card)return;
   var s=cSt(g,grSc),T=TEAMS[g],order=s.order;
   var b=['b1','b2','b3','b4'],rc=['q1','q2','q3',''];
-  var h='<div class="ghdr"><div class="gltr">'+g+'<\/div><div class="gtitle">Grupo '+g+'<\/div><\/div>';
+  var grpColors=['var(--m1)','var(--m2)','var(--m3)','var(--m4)','var(--m5)','var(--m6)','var(--m7)','var(--m8)'];
+  var gColor=grpColors[GS.indexOf(g)%grpColors.length];
+  card.style.borderTop='2px solid '+gColor;
+  var h='<div class="ghdr"><div class="gltr" style="color:'+gColor+';">'+g+'<\/div><div class="gtitle">Grupo '+g+'<\/div><\/div>';
   h+='<table class="sttbl"><thead><tr><th><\/th><th>Seleccion<\/th><th>PJ<\/th><th>GF<\/th><th>DG<\/th><th>Pts<\/th><\/tr><\/thead><tbody>';
   order.forEach(function(idx,rank){
     var pj=0;MU.forEach(function(p,mi){var sc=grSc[g][mi];if(sc&&sc.h!==null&&sc.a!==null&&(idx===p[0]||idx===p[1]))pj++;});
@@ -1002,7 +1039,7 @@ function renderRS(){
     var h='<div class="mgrid">';
     Array(rd.n).fill(0).forEach(function(x,idx){
       var k=rKo[rrTab][idx]||{w:null},m2=rd.bk[idx]||{h:null,a:null},hm=m2.h,am=m2.a,w=k.w;
-      h+='<div class="mcard"><div class="mcard-hdr"><span>'+rd.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+rd.vs[idx]+'<\/span><\/div>';
+      var mColors2=['var(--m1)','var(--m2)','var(--m3)','var(--m4)','var(--m5)','var(--m6)','var(--m7)','var(--m8)'];var mColor2=mColors2[idx%mColors2.length];h+='<div class="mcard" style="border-top:2px solid '+mColor2+';"><div class="mcard-hdr"><span>'+rd.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+rd.vs[idx]+'<\/span><\/div>';
       h+='<div class="mcard-body"><div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(hm?flagImg(hm.f,28):'?')+'<\/div><div class="mcnm">'+(hm?hm.n:'Por definir')+'<\/div><\/div>';
       h+='<div style="font-size:10px;color:var(--muted);padding:0 4px;">VS<\/div>';
       h+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(am?flagImg(am.f,28):'?')+'<\/div><div class="mcnm">'+(am?am.n:'Por definir')+'<\/div><\/div><\/div>';
@@ -1282,7 +1319,9 @@ async function renderPosPublic(){
     GS.forEach(function(g){
       var T=TEAMS[g],s=cSt(g,rGr),order=s.order;
       var b=['b1','b2','b3','b4'],rc=['q1','q2','q3',''];
-      h+='<div class="gcard"><div class="ghdr"><div class="gltr">'+g+'<\/div><div class="gtitle">Grupo '+g+'<\/div><\/div>';
+      var grpColorsP=['var(--m1)','var(--m2)','var(--m3)','var(--m4)','var(--m5)','var(--m6)','var(--m7)','var(--m8)'];
+      var gColorP=grpColorsP[GS.indexOf(g)%grpColorsP.length];
+      h+='<div class="gcard" style="border-top:2px solid '+gColorP+';"><div class="ghdr"><div class="gltr" style="color:'+gColorP+';">'+g+'<\/div><div class="gtitle">Grupo '+g+'<\/div><\/div>';
       h+='<table class="sttbl"><thead><tr><th><\/th><th>Equipo<\/th><th>PJ<\/th><th>GF<\/th><th>DG<\/th><th>Pts<\/th><\/tr><\/thead><tbody>';
       order.forEach(function(idx,rank){
         var pj=0;MU.forEach(function(p,mi){var sc=rGr[g][mi];if(sc&&sc.h!==null&&sc.a!==null&&(idx===p[0]||idx===p[1]))pj++;});
@@ -1301,7 +1340,7 @@ async function renderPosPublic(){
     var h='<div class="mgrid">';
     Array(rd.n).fill(0).forEach(function(x,idx){
       var k=rKo[posTab]&&rKo[posTab][idx]?rKo[posTab][idx]:{w:null},m2=rd.bk[idx]||{h:null,a:null},hm=m2.h,am=m2.a,w=k.w;
-      h+='<div class="mcard"><div class="mcard-hdr"><span>'+rd.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+rd.vs[idx]+'<\/span><\/div>';
+      var mColors2=['var(--m1)','var(--m2)','var(--m3)','var(--m4)','var(--m5)','var(--m6)','var(--m7)','var(--m8)'];var mColor2=mColors2[idx%mColors2.length];h+='<div class="mcard" style="border-top:2px solid '+mColor2+';"><div class="mcard-hdr"><span>'+rd.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+rd.vs[idx]+'<\/span><\/div>';
       h+='<div class="mcard-body"><div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(hm?flagImg(hm.f,28):'?')+'<\/div><div class="mcnm">'+(hm?hm.n:'Por definir')+'<\/div><\/div>';
       h+='<div style="font-size:10px;color:var(--muted);padding:0 4px;">VS<\/div>';
       h+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(am?flagImg(am.f,28):'?')+'<\/div><div class="mcnm">'+(am?am.n:'Por definir')+'<\/div><\/div><\/div>';

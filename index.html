@@ -591,12 +591,15 @@ function calcQualStatus(g,gr){
   var minPts=pts.slice();
   var status=[null,null,null,null];
   for(var i=0;i<4;i++){
+    // Eliminated: at least 2 others have guaranteed points STRICTLY greater than my max possible
+    // (a tie at the max is NOT elimination -- goal difference/head-to-head could still favor me)
     var othersMin=[0,1,2,3].filter(function(x){return x!==i;}).map(function(x){return minPts[x];});
-    var tiedOrBeatCount=othersMin.filter(function(op){return op>=maxPts[i];}).length;
-    if(tiedOrBeatCount>=2){status[i]='e';continue;}
+    var strictlyBeatCount=othersMin.filter(function(op){return op>maxPts[i];}).length;
+    if(strictlyBeatCount>=2){status[i]='e';continue;}
+    // Qualified: at most 1 other can STRICTLY exceed my guaranteed minimum, even in their best case
     var othersMax=[0,1,2,3].filter(function(x){return x!==i;}).map(function(x){return maxPts[x];});
-    var tiedOrBeatCount2=othersMax.filter(function(op){return op>=minPts[i];}).length;
-    if(tiedOrBeatCount2<=1){status[i]='q';continue;}
+    var strictlyBeatCount2=othersMax.filter(function(op){return op>minPts[i];}).length;
+    if(strictlyBeatCount2<=1){status[i]='q';continue;}
   }
   return status;
 }

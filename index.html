@@ -578,30 +578,61 @@ function cSt(g,gr){
   return{pts:pts,gd:gd,gf:gf,w:w,order:order};
 }
 function calcQualStatus(g,gr){
-  // Returns array of 4 statuses: 'q' (mathematically qualified top2), 'e' (mathematically eliminated), or null (undecided)
+  // Returns {status:[4x 'q'/'e'/null], firstPlace:[4x bool]}
+  // status: 'q' = mathematically guaranteed top2, 'e' = mathematically eliminated, null = undecided
+  // firstPlace: true only if status is 'q' AND no rival can possibly tie-or-beat this team's points
   var s=cSt(g,gr);
   var pts=s.pts;
   var remaining=[0,0,0,0];
-  MU.forEach(function(pair,mi){
+  var remOpp=[[],[],[],[]];
+  MU.forEach(function(p,mi){
     var rs=gr[g]?gr[g][mi]:null;
     if(rs&&rs.h!==null&&rs.a!==null)return;
-    remaining[pair[0]]++;remaining[pair[1]]++;
+    remaining[p[0]]++;remaining[p[1]]++;
+    remOpp[p[0]].push(p[1]);remOpp[p[1]].push(p[0]);
   });
   var maxPts=pts.map(function(p,i){return p+remaining[i]*3;});
   var minPts=pts.slice();
-  var status=[null,null,null,null];
-  for(var i=0;i<4;i++){
-    // Eliminated: at least 2 others have guaranteed points STRICTLY greater than my max possible
-    // (a tie at the max is NOT elimination -- goal difference/head-to-head could still favor me)
-    var othersMin=[0,1,2,3].filter(function(x){return x!==i;}).map(function(x){return minPts[x];});
-    var strictlyBeatCount=othersMin.filter(function(op){return op>maxPts[i];}).length;
-    if(strictlyBeatCount>=2){status[i]='e';continue;}
-    // Qualified: at most 1 other can STRICTLY exceed my guaranteed minimum, even in their best case
-    var othersMax=[0,1,2,3].filter(function(x){return x!==i;}).map(function(x){return maxPts[x];});
-    var strictlyBeatCount2=othersMax.filter(function(op){return op>minPts[i];}).length;
-    if(strictlyBeatCount2<=1){status[i]='q';continue;}
+  function h2hPts(a,b){
+    var pa=0;
+    MU.forEach(function(p,mi){
+      var hasA=p[0]===a||p[1]===a, hasB=p[0]===b||p[1]===b;
+      if(!hasA||!hasB)return;
+      var rs=gr[g]?gr[g][mi]:null;
+      if(!rs||rs.h===null||rs.a===null)return;
+      var aIsHome=p[0]===a;
+      var aGoals=aIsHome?rs.h:rs.a, bGoals=aIsHome?rs.a:rs.h;
+      if(aGoals>bGoals)pa=3;else if(aGoals===bGoals)pa=1;else pa=0;
+    });
+    return pa;
   }
-  return status;
+  function countBeats(i, myRefPts, othersRefPts){
+    var others=[0,1,2,3].filter(function(x){return x!==i;});
+    var count=0,tied=[];
+    others.forEach(function(x){
+      if(othersRefPts(x)>myRefPts)count++;
+      else if(othersRefPts(x)===myRefPts)tied.push(x);
+    });
+    tied.forEach(function(x){
+      var iStillPlaysX=remOpp[i].includes(x);
+      if(iStillPlaysX)return;
+      var myH2h=h2hPts(i,x), theirH2h=h2hPts(x,i);
+      if(myH2h<theirH2h)count++;
+    });
+    return count;
+  }
+  var status=[null,null,null,null];
+  var firstPlace=[false,false,false,false];
+  for(var i=0;i<4;i++){
+    var beatCountTop2=countBeats(i, maxPts[i], function(x){return minPts[x];});
+    if(beatCountTop2>=2){status[i]='e';continue;}
+    var beatCountQualify=countBeats(i, minPts[i], function(x){return maxPts[x];});
+    if(beatCountQualify<=1){
+      status[i]='q';
+      if(beatCountQualify===0)firstPlace[i]=true;
+    }
+  }
+  return {status:status,firstPlace:firstPlace};
 }
 function recSt(g){var s=cSt(g,grSc);ST[g]=s.order;}
 function recRS(g){var s=cSt(g,rGr);rSt[g]=s.order;}
@@ -1353,9 +1384,10 @@ async function renderPosPublic(){
       order.forEach(function(idx,rank){
         var pj=0;MU.forEach(function(p,mi){var sc=rGr[g][mi];if(sc&&sc.h!==null&&sc.a!==null&&(idx===p[0]||idx===p[1]))pj++;});
         var gd=s.gd[idx];
-        var qst=qs2[idx];
-        var qBg2=qst==='q'?'background:rgba(42,138,76,0.18);':qst==='e'?'background:rgba(192,57,43,0.15);':'';
-        var qTag2=qst==='q'?' <span style="font-size:8px;color:#2a8a4c;border:1px solid #1a4a2c;padding:0 3px;">CLASIFICA<\/span>':qst==='e'?' <span style="font-size:8px;color:#e05050;border:1px solid #5a1a1a;padding:0 3px;">ELIMINADO<\/span>':'';
+        var qst=qs2.status[idx];
+        var qfp=qs2.firstPlace[idx];
+        var qBg2=qfp?'background:rgba(212,175,55,0.16);':qst==='q'?'background:rgba(42,138,76,0.18);':qst==='e'?'background:rgba(192,57,43,0.15);':'';
+        var qTag2=qfp?' <span style="font-size:8px;color:var(--gold);border:1px solid #5a4a10;padding:0 3px;">&#127942; 1&deg; LUGAR<\/span>':qst==='q'?' <span style="font-size:8px;color:#2a8a4c;border:1px solid #1a4a2c;padding:0 3px;">CLASIFICA<\/span>':qst==='e'?' <span style="font-size:8px;color:#e05050;border:1px solid #5a1a1a;padding:0 3px;">ELIMINADO<\/span>':'';
         h+='<tr class="'+rc[rank]+'" style="'+qBg2+'"><td><span class="pbadge '+b[rank]+'">'+(rank+1)+'<\/span><\/td><td><div class="tcell"><span>'+flagImg(T[idx].f)+'<\/span>'+T[idx].n+qTag2+'<\/div><\/td><td>'+pj+'<\/td><td>'+s.gf[idx]+'<\/td><td>'+(gd>=0?'+':'')+gd+'<\/td><td class="stpts">'+s.pts[idx]+'<\/td><\/tr>';
       });
       h+='<\/tbody><\/table><\/div>';

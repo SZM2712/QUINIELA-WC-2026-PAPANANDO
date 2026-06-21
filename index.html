@@ -1056,35 +1056,7 @@ async function renderPodiosTab(){
     return{name:u.name,pts:pts2,maxPos:maxPos,podio:podio};
   }).sort(function(a,b){return b.maxPos-a.maxPos||b.pts-a.pts;});
 
-  // Group by distinct maxPos value to assign ranking position; ties share position and split the prize
-  // (prize only exists for whoever is tied at the TOP maxPos group -- the eventual winner's pot)
-  var groups=[];
-  ranked.forEach(function(u){
-    var last=groups[groups.length-1];
-    if(last&&last.maxPos===u.maxPos)last.members.push(u);
-    else groups.push({maxPos:u.maxPos,members:[u]});
-  });
-  var rows=[];
-  groups.forEach(function(grp,gi){
-    var isTopGroup=gi===0;
-    var span=grp.members.length;
-    var share=isTopGroup?total/span:0;
-    grp.members.forEach(function(u){rows.push({u:u,pos:gi,span:span,share:share});});
-  });
-
-  var medals=['🥇','🥈','🥉'];
-  var pc2=['var(--gold)','#9aa0aa','#a07040','var(--muted)'];
-  var h='<table class="rtbl" style="margin-bottom:14px;"><thead><tr><th>Pos<\/th><th>Participante<\/th><th class="rr">Pts<\/th><th class="rr">Max Posible<\/th><th class="rr">Premio<\/th><\/tr><\/thead><tbody>';
-  rows.forEach(function(row){
-    var u=row.u,i=row.pos,span=row.span;
-    var col=i<3?pc2[i]:pc2[3];
-    var posLabel=i<3?medals[i]:String(i+1);
-    var prizeLabel=row.share>0?CUR+row.share.toFixed(0)+(span>1?' c\/u':''):'—';
-    h+='<tr><td style="font-family:\'Bebas Neue\',sans-serif;font-size:'+(span>1?'14':'20')+'px;color:'+col+';">'+posLabel+'<\/td><td style="font-weight:700;">'+u.name+'<\/td><td style="text-align:right;color:var(--gold);">'+u.pts+'<\/td><td style="text-align:right;color:var(--muted);">'+u.maxPos+'<\/td><td style="text-align:right;color:'+col+';">'+prizeLabel+'<\/td><\/tr>';
-  });
-  h+='<\/tbody><\/table>';
-
-  h+='<div class="ibox" style="margin-bottom:10px;">Ordenado por el maximo de puntos que cada quien aun puede alcanzar segun los resultados reales (no solo lo ya confirmado). El ganador se lleva todo el pozo.<\/div>';
+  var h='<div class="ibox" style="margin-bottom:10px;">Ordenado por el maximo de puntos que cada quien aun puede alcanzar segun los resultados reales (no solo lo ya confirmado).<\/div>';
   ranked.forEach(function(u){
     var maxLabel=u.maxPos>u.pts?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(max '+u.maxPos+')<\/span>':'';
     h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+u.name+'<\/span><span class="ptcard-pts">'+u.pts+'pts'+maxLabel+'<\/span><\/div><div class="ptpodio">';

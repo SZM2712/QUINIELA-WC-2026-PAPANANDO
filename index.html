@@ -173,6 +173,11 @@ h1 span{color:var(--gold);}
 .today-match:last-child{border-bottom:none;}
 .today-mt{flex:1;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .today-msc{font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--gold);padding:0 8px;min-width:54px;text-align:center;}
+.rtbl{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);max-width:1100px;margin:0 auto;}
+.rtbl th{padding:6px 9px;font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;text-align:left;border-bottom:1px solid var(--border);background:var(--dark3);}
+.rtbl th.rr{text-align:right;}
+.rtbl td{padding:8px 9px;font-size:12px;border-bottom:1px solid #1a2030;}
+.rtbl tr:last-child td{border-bottom:none;}
 </style>
 </head>
 <body>
@@ -692,12 +697,10 @@ function getRlP(){
 }
 function getRlE(){
   var rst={};GS.forEach(function(g){rst[g]=cSt(g,rGr).order;});
-  var qt=gBT(rGr,rst).slice(0,8);
-  var qG=new Set(qt.map(function(t){return t.g;}));
   var el=new Set();
   GS.forEach(function(g){
-    var done=MU.every(function(p,mi){var s=rGr[g]?rGr[g][mi]:null;return s&&s.h!==null&&s.a!==null;});
-    if(done){el.add(TEAMS[g][rst[g][3]].n);if(!qG.has(g))el.add(TEAMS[g][rst[g][2]].n);}
+    var qr=calcQualStatus(g,rGr);
+    qr.status.forEach(function(st,idx){if(st==='e')el.add(TEAMS[g][idx].n);});
   });
   var res=buildBkt(rGr,rst,rKo);
   ['r32','r16','qf','sf'].forEach(function(r){
@@ -1038,15 +1041,53 @@ async function renderPodiosTab(){
   if(!users.length){cont.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);">Aun no hay participantes.<\/div>';return;}
   var pc=['var(--gold)','#9aa0aa','#a07040','var(--muted)'];
   var ranked=users.map(function(u){
-    var podio=deriveUP(u),pts2=0;
-    podio.forEach(function(t,i){if(t&&offP[i]&&t.n===offP[i].n)pts2+=PPTS[i];});
-    return{name:u.name,pts:pts2,podio:podio};
-  }).sort(function(a,b){return b.pts-a.pts;});
-  var topP=ranked.length?ranked[0].pts:0;
-  var h='';
+    var podio=deriveUP(u),pts2=0,maxPos=0;
+    podio.forEach(function(t,i){
+      if(t&&offP[i]&&t.n===offP[i].n)pts2+=PPTS[i];
+      // Max possible: count this position's points if it hasn't been ruled out yet
+      // (not already a confirmed miss, and the predicted team isn't eliminated)
+      var posDecided=rp[i]&&rp[i].n; // this podium slot already has an official confirmed team
+      var alreadyWon=posDecided&&t&&rp[i].n===t.n;
+      var alreadyLost=posDecided&&(!t||rp[i].n!==t.n);
+      var teamEliminated=t&&el.has(t.n);
+      if(alreadyWon){maxPos+=PPTS[i];}
+      else if(!alreadyLost&&t&&!teamEliminated){maxPos+=PPTS[i];}
+    });
+    return{name:u.name,pts:pts2,maxPos:maxPos,podio:podio};
+  }).sort(function(a,b){return b.maxPos-a.maxPos||b.pts-a.pts;});
+
+  // Group by distinct maxPos value to assign ranking position; ties share position and split the prize
+  // (prize only exists for whoever is tied at the TOP maxPos group -- the eventual winner's pot)
+  var groups=[];
   ranked.forEach(function(u){
-    var isW=u.pts>0&&u.pts===topP;
-    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+(isW?'🏆 ':'')+u.name+'<\/span><span class="ptcard-pts">'+u.pts+'pts<\/span><\/div><div class="ptpodio">';
+    var last=groups[groups.length-1];
+    if(last&&last.maxPos===u.maxPos)last.members.push(u);
+    else groups.push({maxPos:u.maxPos,members:[u]});
+  });
+  var rows=[];
+  groups.forEach(function(grp,gi){
+    var isTopGroup=gi===0;
+    var span=grp.members.length;
+    var share=isTopGroup?total/span:0;
+    grp.members.forEach(function(u){rows.push({u:u,pos:gi,span:span,share:share});});
+  });
+
+  var medals=['🥇','🥈','🥉'];
+  var pc2=['var(--gold)','#9aa0aa','#a07040','var(--muted)'];
+  var h='<table class="rtbl" style="margin-bottom:14px;"><thead><tr><th>Pos<\/th><th>Participante<\/th><th class="rr">Pts<\/th><th class="rr">Max Posible<\/th><th class="rr">Premio<\/th><\/tr><\/thead><tbody>';
+  rows.forEach(function(row){
+    var u=row.u,i=row.pos,span=row.span;
+    var col=i<3?pc2[i]:pc2[3];
+    var posLabel=i<3?medals[i]:String(i+1);
+    var prizeLabel=row.share>0?CUR+row.share.toFixed(0)+(span>1?' c\/u':''):'—';
+    h+='<tr><td style="font-family:\'Bebas Neue\',sans-serif;font-size:'+(span>1?'14':'20')+'px;color:'+col+';">'+posLabel+'<\/td><td style="font-weight:700;">'+u.name+'<\/td><td style="text-align:right;color:var(--gold);">'+u.pts+'<\/td><td style="text-align:right;color:var(--muted);">'+u.maxPos+'<\/td><td style="text-align:right;color:'+col+';">'+prizeLabel+'<\/td><\/tr>';
+  });
+  h+='<\/tbody><\/table>';
+
+  h+='<div class="ibox" style="margin-bottom:10px;">Ordenado por el maximo de puntos que cada quien aun puede alcanzar segun los resultados reales (no solo lo ya confirmado). El ganador se lleva todo el pozo.<\/div>';
+  ranked.forEach(function(u){
+    var maxLabel=u.maxPos>u.pts?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(max '+u.maxPos+')<\/span>':'';
+    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+u.name+'<\/span><span class="ptcard-pts">'+u.pts+'pts'+maxLabel+'<\/span><\/div><div class="ptpodio">';
     u.podio.forEach(function(t,pi){
       if(!t){h+='<div class="ptpos unk"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°<\/div><div class="ptpos-fl">?<\/div><div class="ptpos-nm">-<\/div><div class="ptpos-st">-<\/div><\/div>';return;}
       var isEl=el.has(t.n),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
@@ -1155,9 +1196,17 @@ async function renderAdmin(){
   var offP=offR.map(function(n){return n?Object.values(TEAMS).flat().find(function(t){return t.n===n;})||null:null;});
   var pc=['var(--gold)','#9aa0aa','#a07040','var(--muted)'];
   var ranked=users.map(function(u){
-    var podio=deriveUP(u),pts2=0;
-    podio.forEach(function(t,i){if(t&&offP[i]&&t.n===offP[i].n)pts2+=PPTS[i];});
-    return{data:u,name:u.name,pts:pts2,podio:podio,locked:u.locked};
+    var podio=deriveUP(u),pts2=0,maxPos=0;
+    podio.forEach(function(t,i){
+      if(t&&offP[i]&&t.n===offP[i].n)pts2+=PPTS[i];
+      var posDecided=rp[i]&&rp[i].n;
+      var alreadyWon=posDecided&&t&&rp[i].n===t.n;
+      var alreadyLost=posDecided&&(!t||rp[i].n!==t.n);
+      var teamEliminated=t&&el.has(t.n);
+      if(alreadyWon){maxPos+=PPTS[i];}
+      else if(!alreadyLost&&t&&!teamEliminated){maxPos+=PPTS[i];}
+    });
+    return{data:u,name:u.name,pts:pts2,maxPos:maxPos,podio:podio,locked:u.locked};
   }).sort(function(a,b){return b.pts-a.pts;});
   var topP=ranked.length?ranked[0].pts:0;
   var allT=Object.values(TEAMS).flat();
@@ -1176,7 +1225,7 @@ async function renderAdmin(){
     var isW=u.pts>0&&u.pts===topP;
     var lk=u.locked?'<span style="font-size:9px;padding:1px 4px;border:1px solid #1a4a2c;color:#2a8a4c;">CONF<\/span>':'<span style="font-size:9px;padding:1px 4px;border:1px solid #3a3010;color:#a09020;">ABIERTO<\/span>';
     var uid='ubkt-'+btoa(unescape(encodeURIComponent(u.name))).replace(/[^a-zA-Z0-9]/g,'');
-    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+(isW?'🏆 ':'')+lk+' '+u.name+'<\/span><span class="ptcard-pts">'+u.pts+'pts<\/span><\/div><div class="ptpodio">';
+    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+(isW?'🏆 ':'')+lk+' '+u.name+'<\/span><span class="ptcard-pts">'+u.pts+'pts'+(u.maxPos>u.pts?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(max '+u.maxPos+')<\/span>':'')+'<\/span><\/div><div class="ptpodio">';
     u.podio.forEach(function(t,pi){
       if(!t){h+='<div class="ptpos unk"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°<\/div><div class="ptpos-fl">?<\/div><div class="ptpos-nm">-<\/div><div class="ptpos-st">-<\/div><\/div>';return;}
       var isEl=el.has(t.n),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
@@ -1397,15 +1446,29 @@ async function renderPosPublic(){
   }else{
     var rst={};GS.forEach(function(g){rst[g]=rSt[g]||[0,1,2,3];});
     var rb=buildBkt(rGr,rst,rKo);
-    var kRounds={r32:{n:16,lbls:R32.map(function(d){return d.l;}),vs:R32.map(function(d){return d.v;}),bk:rb.r32},r16:{n:8,lbls:R16P.map(function(p,i){return'P'+(89+i);}),vs:R16V,bk:rb.r16},qf:{n:4,lbls:['P97','P98','P99','P100'],vs:QFV,bk:rb.qf},sf:{n:2,lbls:['P101','P102'],vs:SFV,bk:rb.sf},third:{n:1,lbls:['P103'],vs:['Dallas-ATT'],bk:rb.third},final:{n:1,lbls:['P104'],vs:['Nueva York-MetLife'],bk:rb.final}};
+    // Precompute mathematical confirmation per group: which slot (1st/2nd) is locked in
+    var confMap={}; // confMap[g] = {first:bool, second:bool}
+    GS.forEach(function(g){
+      var qr=calcQualStatus(g,rGr);
+      var order=rst[g];
+      var firstIdx=order[0],secondIdx=order[1];
+      confMap[g]={first:!!qr.firstPlace[firstIdx],second:qr.status[secondIdx]==='q'};
+    });
+    function slotConfirmed(sel){
+      if(!sel||sel.tf)return false; // third-place slots are never simply "confirmed" here
+      return sel.r===0?confMap[sel.g].first:confMap[sel.g].second;
+    }
+    var kRounds={r32:{n:16,lbls:R32.map(function(d){return d.l;}),vs:R32.map(function(d){return d.v;}),bk:rb.r32,sels:R32},r16:{n:8,lbls:R16P.map(function(p,i){return'P'+(89+i);}),vs:R16V,bk:rb.r16},qf:{n:4,lbls:['P97','P98','P99','P100'],vs:QFV,bk:rb.qf},sf:{n:2,lbls:['P101','P102'],vs:SFV,bk:rb.sf},third:{n:1,lbls:['P103'],vs:['Dallas-ATT'],bk:rb.third},final:{n:1,lbls:['P104'],vs:['Nueva York-MetLife'],bk:rb.final}};
     var rd=kRounds[posTab];if(!rd){cont.innerHTML='';return;}
     var h='<div class="mgrid">';
     Array(rd.n).fill(0).forEach(function(x,idx){
       var k=rKo[posTab]&&rKo[posTab][idx]?rKo[posTab][idx]:{w:null},m2=rd.bk[idx]||{h:null,a:null},hm=m2.h,am=m2.a,w=k.w;
       var mColors2=['var(--m1)','var(--m2)','var(--m3)','var(--m4)','var(--m5)','var(--m6)','var(--m7)','var(--m8)'];var mColor2=mColors2[idx%mColors2.length];h+='<div class="mcard" style="border-top:2px solid '+mColor2+';"><div class="mcard-hdr"><span>'+rd.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+rd.vs[idx]+'<\/span><\/div>';
-      h+='<div class="mcard-body"><div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(hm?flagImg(hm.f,28):'?')+'<\/div><div class="mcnm">'+(hm?hm.n:'Por definir')+'<\/div><\/div>';
+      var hConfMark=(posTab==='r32'&&hm&&slotConfirmed(rd.sels[idx].h))?'<span style="font-size:8px;color:#2a8a4c;" title="Confirmado matematicamente">&#9989;<\/span>':'';
+      var aConfMark=(posTab==='r32'&&am&&slotConfirmed(rd.sels[idx].a))?'<span style="font-size:8px;color:#2a8a4c;" title="Confirmado matematicamente">&#9989;<\/span>':'';
+      h+='<div class="mcard-body"><div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(hm?flagImg(hm.f,28):'?')+'<\/div><div class="mcnm">'+hConfMark+(hm?hm.n:'Por definir')+'<\/div><\/div>';
       h+='<div style="font-size:10px;color:var(--muted);padding:0 4px;">VS<\/div>';
-      h+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(am?flagImg(am.f,28):'?')+'<\/div><div class="mcnm">'+(am?am.n:'Por definir')+'<\/div><\/div><\/div>';
+      h+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(am?flagImg(am.f,28):'?')+'<\/div><div class="mcnm">'+aConfMark+(am?am.n:'Por definir')+'<\/div><\/div><\/div>';
       if(w){var winner=w==='h'?hm:am;h+='<div style="padding:4px 10px;background:#0a1208;border-top:1px solid #1a3a22;font-size:10px;color:#2a8a4c;font-weight:700;text-align:center;">Avanza: '+winner.n+'<\/div>';}
       h+='<\/div>';
     });

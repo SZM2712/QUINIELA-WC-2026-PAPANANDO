@@ -224,6 +224,7 @@ h1 span{color:var(--gold);}
     <button class="tab" onclick="showTab('podio',this)">Mi Podio</button>
     <button class="tab" onclick="showTab('podios',this)">Podios</button>
     <button class="tab" onclick="showTab('pos',this)">Posiciones</button>
+    <button class="tab" onclick="showTab('aciertos',this)">Aciertos</button>
     <button class="tab atab" onclick="showTab('admin',this)">Admin</button>
   </div>
   <div id="tab-grupos" class="view active">
@@ -267,6 +268,12 @@ h1 span{color:var(--gold);}
       <div class="ibox">Como van los grupos y el bracket real segun los resultados que el admin ha cargado.</div>
       <div class="rr-rtabs" id="pos-rtabs"></div>
       <div id="pos-content"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
+    </div>
+  </div>
+  <div id="tab-aciertos" class="view">
+    <div style="max-width:1100px;margin:0 auto;padding:12px 0;">
+      <div class="ibox">Quien le ha acertado mas al resultado (gano, perdio o empato) de los partidos de grupo ya jugados, sin importar el marcador exacto.</div>
+      <div id="aciertos-content"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
     </div>
   </div>
   <div id="tab-admin" class="view">
@@ -1377,6 +1384,43 @@ async function expCSV(){
   var url=URL.createObjectURL(blob);var a=document.createElement('a');a.href=url;a.download='papanando_reporte_'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(url);
 }
 var posTab='grupos';
+async function renderAciertos(){
+  var cont=document.getElementById('aciertos-content');if(!cont)return;
+  cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Calculando...<\/div>';
+  await loadRD();
+  var users=await getAllUsers();
+  if(!users.length){cont.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);">Aun no hay participantes.<\/div>';return;}
+  var anyPlayed=false;
+  var stats=users.map(function(u){
+    var hits=0,total=0;
+    GS.forEach(function(g){
+      MU.forEach(function(p,mi){
+        var real=rGr[g]?rGr[g][mi]:null;
+        if(!real||real.h===null||real.a===null)return;
+        anyPlayed=true;
+        var pred=u.grSc&&u.grSc[g]?u.grSc[g][mi]:null;
+        if(!pred||pred.h===null||pred.a===null){total++;return;}
+        var predW=pred.h>pred.a?'h':pred.a>pred.h?'a':'d';
+        var realW=real.h>real.a?'h':real.a>real.h?'a':'d';
+        total++;
+        if(predW===realW)hits++;
+      });
+    });
+    var pct=total>0?Math.round(hits/total*100):0;
+    return{name:u.name,hits:hits,total:total,pct:pct};
+  });
+  if(!anyPlayed){cont.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);">Aun no hay resultados de partidos guardados.<\/div>';return;}
+  stats.sort(function(a,b){return b.pct-a.pct||b.hits-a.hits;});
+  var maxPct=stats.length?stats[0].pct:0;
+  var h='<table class="rtbl"><thead><tr><th>Pos<\/th><th>Participante<\/th><th class="rr">Aciertos<\/th><th class="rr">% Acierto<\/th><\/tr><\/thead><tbody>';
+  stats.forEach(function(s,i){
+    var isTop=s.pct>0&&s.pct===maxPct;
+    var medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':String(i+1);
+    h+='<tr><td style="font-family:\'Bebas Neue\',sans-serif;font-size:'+(i<3?'20':'14')+'px;color:'+(i<3?'var(--gold)':'var(--muted)')+';">'+medal+'<\/td><td style="font-weight:700;">'+(isTop?'🔥 ':'')+s.name+'<\/td><td style="text-align:right;color:var(--muted);">'+s.hits+'\/'+s.total+'<\/td><td style="text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:var(--gold);">'+s.pct+'%<\/td><\/tr>';
+  });
+  h+='<\/tbody><\/table>';
+  cont.innerHTML=h;
+}
 async function renderPosPublic(){
   await loadRD();
   var tabsEl=document.getElementById('pos-rtabs');
@@ -1456,6 +1500,7 @@ function showTab(t,btn){
   if(t==='podio')renderPodium();
   if(t==='podios')renderPodiosTab();
   if(t==='pos')renderPosPublic();
+  if(t==='aciertos')renderAciertos();
   if(t==='admin')renderAdmin();
 }
 function resetTodo(){

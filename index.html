@@ -1951,7 +1951,11 @@ async function renderPosPublic(){
       var qr=calcQualStatus(g,rGr);
       var order=rst[g];
       var firstIdx=order[0],secondIdx=order[1];
-      confMap[g]={first:!!qr.firstPlace[firstIdx],second:qr.status[secondIdx]==='q'};
+      // 1ro confirmado: ese equipo no puede ser alcanzado para el 1er lugar.
+      // 2do confirmado: el 1ro ya esta cerrado Y el segundo tiene top-2 asegurado,
+      //   por lo que necesariamente queda 2do (sabemos a que llave va).
+      var firstLocked=!!qr.firstPlace[firstIdx];
+      confMap[g]={first:firstLocked,second:firstLocked&&qr.status[secondIdx]==='q'};
     });
     function slotConfirmed(sel){
       if(!sel||sel.tf)return false; // third-place slots are never simply "confirmed" here

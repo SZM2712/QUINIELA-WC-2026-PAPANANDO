@@ -1070,7 +1070,7 @@ function cSt(g,gr){
     gf[i]+=s.h;gf[j]+=s.a;gd[i]+=s.h-s.a;gd[j]+=s.a-s.h;
     if(s.h>s.a){pts[i]+=3;w[i]++;}else if(s.a>s.h){pts[j]+=3;w[j]++;}else{pts[i]++;pts[j]++;}
   });
-  var order=[0,1,2,3].sort(function(a,b){return pts[b]-pts[a]||gd[b]-gd[a]||gf[b]-gf[a]||w[b]-w[a]||a-b;});
+  var order=[0,1,2,3].sort(function(a,b){return pts[b]-pts[a]||gd[b]-gd[a]||gf[b]-gf[a]||a-b;});
   return{pts:pts,gd:gd,gf:gf,w:w,order:order};
 }
 function calcQualStatus(g,gr){
@@ -1134,10 +1134,14 @@ function recSt(g){var s=cSt(g,grSc);ST[g]=s.order;}
 function recRS(g){var s=cSt(g,rGr);rSt[g]=s.order;}
 
 function gBT(gr,sts){
+  // Selecciona y ordena los terceros igual que mundial2026 (Anexo C / criterio FIFA):
+  // tercero = order[2] (pts, gd, gf, indice); solo cuentan los que ya jugaron (pj>0);
+  // ranking entre grupos por pts, diferencia de gol y goles a favor.
   return GS.map(function(g){
-    var s=cSt(g,gr),idx=sts[g][2];
-    return{g:g,t:TEAMS[g][idx],pts:s.pts[idx]||0,gd:s.gd[idx]||0,gf:s.gf[idx]||0,w:s.w[idx]||0};
-  }).sort(function(a,b){return b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||b.w-a.w||a.g.localeCompare(b.g);});
+    var s=cSt(g,gr),idx=s.order[2];
+    var pj=0;MU.forEach(function(p,mi){var sc=gr[g]?gr[g][mi]:null;if(sc&&sc.h!==null&&sc.a!==null&&(idx===p[0]||idx===p[1]))pj++;});
+    return{g:g,t:TEAMS[g][idx],pts:s.pts[idx]||0,gd:s.gd[idx]||0,gf:s.gf[idx]||0,w:s.w[idx]||0,pj:pj};
+  }).filter(function(t){return t.pj>0;}).sort(function(a,b){return b.pts-a.pts||b.gd-a.gd||b.gf-a.gf;});
 }
 
 function buildBkt(gr,sts,ko){

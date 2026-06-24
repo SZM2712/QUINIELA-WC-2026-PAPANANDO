@@ -1074,59 +1074,40 @@ function cSt(g,gr){
   return{pts:pts,gd:gd,gf:gf,w:w,order:order};
 }
 function calcQualStatus(g,gr){
-  // Returns {status:[4x 'q'/'e'/null], firstPlace:[4x bool]}
-  // status: 'q' = mathematically guaranteed top2, 'e' = mathematically eliminated, null = undecided
-  // firstPlace: true only if status is 'q' AND no rival can possibly tie-or-beat this team's points
+  // status: 'q' = top-2 del grupo asegurado, 'e' = ULTIMO lugar asegurado (no avanza por ninguna via),
+  //   null = por definir (incluye 3ro, que puede clasificar como mejor tercero).
+  // firstPlace: true solo cuando el 1er lugar esta matematicamente asegurado (uno solo; usa DG/GF si hay empate en pts).
   var s=cSt(g,gr);
-  var pts=s.pts;
+  var pts=s.pts,gd=s.gd,gf=s.gf;
   var remaining=[0,0,0,0];
-  var remOpp=[[],[],[],[]];
   MU.forEach(function(p,mi){
     var rs=gr[g]?gr[g][mi]:null;
     if(rs&&rs.h!==null&&rs.a!==null)return;
     remaining[p[0]]++;remaining[p[1]]++;
-    remOpp[p[0]].push(p[1]);remOpp[p[1]].push(p[0]);
   });
-  var maxPts=pts.map(function(p,i){return p+remaining[i]*3;});
-  var minPts=pts.slice();
-  function h2hPts(a,b){
-    var pa=0;
-    MU.forEach(function(p,mi){
-      var hasA=p[0]===a||p[1]===a, hasB=p[0]===b||p[1]===b;
-      if(!hasA||!hasB)return;
-      var rs=gr[g]?gr[g][mi]:null;
-      if(!rs||rs.h===null||rs.a===null)return;
-      var aIsHome=p[0]===a;
-      var aGoals=aIsHome?rs.h:rs.a, bGoals=aIsHome?rs.a:rs.h;
-      if(aGoals>bGoals)pa=3;else if(aGoals===bGoals)pa=1;else pa=0;
-    });
-    return pa;
-  }
-  function countBeats(i, myRefPts, othersRefPts){
-    var others=[0,1,2,3].filter(function(x){return x!==i;});
-    var count=0,tied=[];
-    others.forEach(function(x){
-      if(othersRefPts(x)>myRefPts)count++;
-      else if(othersRefPts(x)===myRefPts)tied.push(x);
-    });
-    tied.forEach(function(x){
-      var iStillPlaysX=remOpp[i].includes(x);
-      if(iStillPlaysX)return;
-      var myH2h=h2hPts(i,x), theirH2h=h2hPts(x,i);
-      if(myH2h<theirH2h)count++;
-    });
-    return count;
-  }
+  var groupDone=(remaining[0]+remaining[1]+remaining[2]+remaining[3])===0;
   var status=[null,null,null,null];
   var firstPlace=[false,false,false,false];
+  // orden real por puntos, diferencia de gol, goles a favor (igual que la tabla mostrada)
+  var ord=[0,1,2,3].sort(function(a,b){return pts[b]-pts[a]||gd[b]-gd[a]||gf[b]-gf[a]||a-b;});
+  if(groupDone){
+    status[ord[0]]='q';status[ord[1]]='q';   // 1ro y 2do clasifican directo
+    status[ord[3]]='e';                        // 4to (ultimo): eliminado, nunca avanza
+    firstPlace[ord[0]]=true;                   // un unico primer lugar (DG/GF rompe empate de pts)
+    return {status:status,firstPlace:firstPlace}; // ord[2] (3ro) queda null: puede ser mejor tercero
+  }
+  var maxPts=pts.map(function(p,i){return p+remaining[i]*3;});
+  var minPts=pts.slice();
   for(var i=0;i<4;i++){
-    var beatCountTop2=countBeats(i, maxPts[i], function(x){return minPts[x];});
-    if(beatCountTop2>=2){status[i]='e';continue;}
-    var beatCountQualify=countBeats(i, minPts[i], function(x){return maxPts[x];});
-    if(beatCountQualify<=1){
-      status[i]='q';
-      if(beatCountQualify===0)firstPlace[i]=true;
+    var surelyAbove=0,couldTieOrBeat=0,surelyBelow=0;
+    for(var x=0;x<4;x++){if(x===i)continue;
+      if(minPts[x]>maxPts[i])surelyAbove++;       // x seguro por encima de i
+      if(maxPts[x]>=minPts[i])couldTieOrBeat++;    // x podria alcanzar/superar a i
+      if(maxPts[x]<minPts[i])surelyBelow++;        // i seguro por encima de x
     }
+    if(surelyAbove>=3)status[i]='e';               // 3 seguros arriba -> ultimo -> eliminado
+    if(couldTieOrBeat<=1)status[i]='q';            // a lo sumo 1 puede alcanzarlo -> top-2 seguro
+    if(surelyBelow===3)firstPlace[i]=true;         // por encima de los 3 con certeza -> 1ro seguro
   }
   return {status:status,firstPlace:firstPlace};
 }

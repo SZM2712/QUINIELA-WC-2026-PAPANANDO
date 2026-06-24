@@ -1963,11 +1963,16 @@ async function renderPosPublic(){
     Array(rd.n).fill(0).forEach(function(x,idx){
       var k=rKo[posTab]&&rKo[posTab][idx]?rKo[posTab][idx]:{w:null},m2=rd.bk[idx]||{h:null,a:null},hm=m2.h,am=m2.a,w=k.w;
       h+='<div class="mcard"><div class="mcard-hdr"><span>'+rd.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+rd.vs[idx]+'<\/span><\/div>';
-      var hConfMark=(posTab==='r32'&&hm&&slotConfirmed(rd.sels[idx].h))?'<span style="font-size:8px;color:#2a8a4c;" title="Confirmado matematicamente">&#9989;<\/span>':'';
-      var aConfMark=(posTab==='r32'&&am&&slotConfirmed(rd.sels[idx].a))?'<span style="font-size:8px;color:#2a8a4c;" title="Confirmado matematicamente">&#9989;<\/span>':'';
-      h+='<div class="mcard-body"><div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(hm?flagImg(hm.f,28):'?')+'<\/div><div class="mcnm">'+hConfMark+(hm?hm.n:'Por definir')+'<\/div><\/div>';
+      var hConf=(posTab==='r32'&&hm&&slotConfirmed(rd.sels[idx].h));
+      var aConf=(posTab==='r32'&&am&&slotConfirmed(rd.sels[idx].a));
+      var hConfMark=hConf?'<span style="font-size:8px;color:#2a8a4c;" title="Confirmado matematicamente">&#9989;<\/span>':'';
+      var aConfMark=aConf?'<span style="font-size:8px;color:#2a8a4c;" title="Confirmado matematicamente">&#9989;<\/span>':'';
+      // Nombre en verde cuando el equipo ya esta confirmado en esta llave (y aun no hay ganador del partido)
+      var hNameStyle=(hConf&&!w)?' style="color:#2a8a4c;font-weight:700;"':'';
+      var aNameStyle=(aConf&&!w)?' style="color:#2a8a4c;font-weight:700;"':'';
+      h+='<div class="mcard-body"><div class="mcteam'+(w==='h'?' win':w?' los':'')+'"><div class="mcfl">'+(hm?flagImg(hm.f,28):'?')+'<\/div><div class="mcnm"'+hNameStyle+'>'+hConfMark+(hm?hm.n:'Por definir')+'<\/div><\/div>';
       h+='<div style="font-size:10px;color:var(--muted);padding:0 4px;">VS<\/div>';
-      h+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(am?flagImg(am.f,28):'?')+'<\/div><div class="mcnm">'+aConfMark+(am?am.n:'Por definir')+'<\/div><\/div><\/div>';
+      h+='<div class="mcteam'+(w==='a'?' win':w?' los':'')+'"><div class="mcfl">'+(am?flagImg(am.f,28):'?')+'<\/div><div class="mcnm"'+aNameStyle+'>'+aConfMark+(am?am.n:'Por definir')+'<\/div><\/div><\/div>';
       if(w){var winner=w==='h'?hm:am;h+='<div style="padding:4px 10px;background:#0a1208;border-top:1px solid #1a3a22;font-size:10px;color:#2a8a4c;font-weight:700;text-align:center;">Avanza: '+winner.n+'<\/div>';}
       h+='<\/div>';
     });

@@ -1043,6 +1043,7 @@ function assignThirds(qg){
 
 var CU=null,adm=false,uLk=false,uCd='',uExt=false; // uExt = admin granted extension
 var grSc={},koSc={},ST={},BKT={};
+var rThirdOv=null; // override admin: letra de grupo a colocar 8vo cuando hay empate exacto 8º/9º
 var rGr={},rKo={},rSt={};
 var rrTab='grupos';
 
@@ -1114,15 +1115,28 @@ function calcQualStatus(g,gr){
 function recSt(g){var s=cSt(g,grSc);ST[g]=s.order;}
 function recRS(g){var s=cSt(g,rGr);rSt[g]=s.order;}
 
-function gBT(gr,sts){
-  // Selecciona y ordena los terceros igual que mundial2026 (Anexo C / criterio FIFA):
-  // tercero = order[2] (pts, gd, gf, indice); solo cuentan los que ya jugaron (pj>0);
-  // ranking entre grupos por pts, diferencia de gol y goles a favor.
+function rawThirds(gr){
+  // Terceros ordenados por criterio FIFA (pts, dg, gf), solo los que ya jugaron (pj>0). SIN override.
   return GS.map(function(g){
     var s=cSt(g,gr),idx=s.order[2];
     var pj=0;MU.forEach(function(p,mi){var sc=gr[g]?gr[g][mi]:null;if(sc&&sc.h!==null&&sc.a!==null&&(idx===p[0]||idx===p[1]))pj++;});
     return{g:g,t:TEAMS[g][idx],pts:s.pts[idx]||0,gd:s.gd[idx]||0,gf:s.gf[idx]||0,w:s.w[idx]||0,pj:pj};
   }).filter(function(t){return t.pj>0;}).sort(function(a,b){return b.pts-a.pts||b.gd-a.gd||b.gf-a.gf;});
+}
+function applyThirdOverride(arr,ov){
+  // Solo actua si el 8vo y el 9no estan empatados EXACTOS (pts, dg, gf) y ov nombra al grupo del 9no.
+  if(!ov||arr.length<9)return arr;
+  var a=arr[7],b=arr[8];
+  if(a.pts!==b.pts||a.gd!==b.gd||a.gf!==b.gf)return arr; // no hay empate real en el borde -> se ignora
+  if(b.g!==ov)return arr;                                // el override no corresponde al 9no actual
+  var copy=arr.slice();copy[7]=b;copy[8]=a;return copy;  // sube el 9no al 8vo lugar
+}
+function gBT(gr,sts){
+  // Selecciona y ordena los terceros igual que mundial2026 (Anexo C / criterio FIFA).
+  // El override del admin solo se aplica al bracket REAL (gr===rGr).
+  var arr=rawThirds(gr);
+  if(gr===rGr&&rThirdOv)arr=applyThirdOverride(arr,rThirdOv);
+  return arr;
 }
 
 function buildBkt(gr,sts,ko){
@@ -1272,6 +1286,7 @@ function restoreD(s){
 }
 async function loadRD(){
   initRS();
+  rThirdOv=(await stG('third_override'))||null;
   var d=await stG('real_results');if(!d)return;
   if(d.grSc)GS.forEach(function(g){
     if(d.grSc[g]){
@@ -1661,6 +1676,28 @@ async function renderAdmin(){
   h+='<div class="asec"><div class="asectitle">Resultados Reales<\/div><div class="rr-rtabs">';
   ['grupos','r32','r16','qf','sf','third','final'].forEach(function(r){var lbs={grupos:'Grupos',r32:'16avos',r16:'Octavos',qf:'Cuartos',sf:'Semis',third:'3er Lugar',final:'Final'};h+='<button class="rr-rtab'+(r===rrTab?' active':'')+'" onclick="setRRTab(\''+r+'\')">'+lbs[r]+'<\/button>';});
   h+='<\/div><div id="rr-content"><\/div><div style="margin-top:10px;display:flex;align-items:center;gap:10px;"><button class="cbtn" onclick="saveRR()">Guardar Resultados<\/button><span id="rr-msg" style="font-size:11px;color:#2a8a4c;"><\/span><\/div><\/div>';
+  // --- Desempate de Terceros (8 / 9) ---
+  var rtArr=rawThirds(rGr);
+  h+='<div class="asec"><div class="asectitle">Desempate de Terceros (8&ordm;/9&ordm;)<\/div>';
+  if(rtArr.length<9){
+    h+='<div class="ibox">Aun no hay 9 terceros con partidos jugados; todavia no puede haber empate en el borde.<\/div>';
+    if(rThirdOv)h+='<div style="font-size:12px;color:#c07820;">Override guardado: Grupo '+rThirdOv+' (se aplicara solo si hay empate exacto 8&ordm;/9&ordm;). <button class="abtn" onclick="clearThirdOv()">Quitar<\/button><\/div>';
+  }else{
+    var t8=rtArr[7],t9=rtArr[8];
+    var tied=(t8.pts===t9.pts&&t8.gd===t9.gd&&t8.gf===t9.gf);
+    if(!tied){
+      h+='<div class="ibox">No hay empate exacto entre el 8&ordm; ('+t8.t.n+') y el 9&ordm; ('+t9.t.n+'). El override solo aplica cuando empatan en puntos, diferencia de gol y goles a favor.<\/div>';
+      if(rThirdOv)h+='<div style="font-size:12px;color:#c07820;">Override guardado: Grupo '+rThirdOv+' (ignorado mientras no haya empate). <button class="abtn" onclick="clearThirdOv()">Quitar<\/button><\/div>';
+    }else{
+      var active9=(rThirdOv===t9.g);
+      h+='<div class="ibox">Empate exacto 8&ordm;/9&ordm;: <b>'+t8.t.n+'<\/b> (Gr.'+t8.g+') y <b>'+t9.t.n+'<\/b> (Gr.'+t9.g+') &mdash; '+t8.pts+'pts, DG '+(t8.gd>=0?'+':'')+t8.gd+', '+t8.gf+'GF. FIFA desempata por fair-play/sorteo (la app no lo calcula). Elige quien clasifica como 8&ordm;:<\/div>';
+      h+='<div style="display:flex;gap:7px;flex-wrap:wrap;">';
+      h+='<button class="abtn" style="'+(!active9?'border-color:#1a6b3c;color:#2a8a4c;background:#0d1a12;':'')+'" onclick="clearThirdOv()">'+flagImg(t8.t.f)+' '+t8.t.n+' (Gr.'+t8.g+')'+(!active9?' &#10003;':'')+'<\/button>';
+      h+='<button class="abtn" style="'+(active9?'border-color:#1a6b3c;color:#2a8a4c;background:#0d1a12;':'')+'" onclick="setThirdOv(\''+t9.g+'\')">'+flagImg(t9.t.f)+' '+t9.t.n+' (Gr.'+t9.g+')'+(active9?' &#10003;':'')+'<\/button>';
+      h+='<\/div>';
+    }
+  }
+  h+='<\/div>';
   h+='<div class="asec"><div class="asectitle">Podio Oficial<\/div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:7px;margin-bottom:9px;">';
   [0,1,2,3].forEach(function(pos){h+='<div style="background:var(--panel);border:1px solid var(--border);padding:9px;"><div style="font-size:9px;letter-spacing:1px;color:'+pc[pos]+';text-transform:uppercase;margin-bottom:5px;">'+['1er','2do','3ro','4to'][pos]+' '+PPTS[pos]+'pts<\/div><select id="op-'+pos+'" style="width:100%;padding:5px;background:#1a2030;border:1px solid var(--border);color:var(--text);font-family:\'Barlow Condensed\',sans-serif;font-size:12px;"><option value="">Sin definir<\/option>'+allT.map(function(t){return'<option value="'+t.n+'"'+(offR[pos]===t.n?' selected':'')+'>'+t.n+'<\/option>';}).join('')+'<\/select><\/div>';});
   h+='<\/div><button class="cbtn" onclick="saveOP()">Guardar Podio Oficial<\/button><span id="op-msg" style="font-size:11px;color:#2a8a4c;margin-left:9px;"><\/span><\/div>';
@@ -1704,6 +1741,15 @@ async function saveOP(){
   var vals=[0,1,2,3].map(function(i){var el=document.getElementById('op-'+i);return el?el.value||null:null;}).map(function(v){return v||null;});
   await stS('official_podio',vals);
   var m=document.getElementById('op-msg');if(m){m.textContent='Guardado';setTimeout(function(){m.textContent='';},3000);}
+}
+async function setThirdOv(g){
+  await stS('third_override',g);rThirdOv=g;
+  alert('Listo. El Grupo '+g+' clasificara como 8vo mejor tercero mientras siga el empate exacto 8/9.');
+  renderAdmin();
+}
+async function clearThirdOv(){
+  await stD('third_override');rThirdOv=null;
+  renderAdmin();
 }
 function genCd(){var c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
 var lastCd='',lastNm='';

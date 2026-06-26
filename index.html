@@ -243,6 +243,7 @@ h1 span{color:var(--gold);}
       <div class="podium-title">Mi Podio Predicho</div>
       <div class="ibox" style="text-align:center;">Se calcula automaticamente de tu bracket.</div>
       <div class="podium" id="podium"></div>
+      <div id="podio-feas" style="max-width:760px;margin:12px auto 0;"></div>
     </div>
   </div>
   <div id="tab-podios" class="view">
@@ -1185,12 +1186,80 @@ function getRlP(){
   var rst={};GS.forEach(function(g){rst[g]=cSt(g,rGr).order;});
   return buildBkt(rGr,rst,rKo).podio;
 }
+// ── Factibilidad del podio segun el lado del bracket ──
+// Cada equipo cae en un "cuarto" (0-3) del bracket; cada cuarto produce 1 semifinalista.
+// Mitad 0 = cuartos de SF1, mitad 1 = cuartos de SF2. Finalistas salen de mitades opuestas; 3o/4o tambien.
+function r32QuarterOf(r){
+  var j=-1,k=-1,x;
+  for(x=0;x<R16P.length;x++){if(R16P[x].indexOf(r)>=0){j=x;break;}}
+  for(x=0;x<QFP.length;x++){if(QFP[x].indexOf(j)>=0){k=x;break;}}
+  return k;
+}
+function quarterHalfOf(k){for(var x=0;x<SFP.length;x++){if(SFP[x].indexOf(k)>=0)return x;}return -1;}
+function realQuartersMap(rb){
+  var out={};
+  rb.r32.forEach(function(m,i){var q=r32QuarterOf(i),hf=quarterHalfOf(q);
+    if(m.h)out[m.h.n]={q:q,half:hf};
+    if(m.a)out[m.a.n]={q:q,half:hf};});
+  return out;
+}
+function podioFeasibility(podio,qmap,el){
+  // podio=[campeon,subcampeon,3o,4o] (team objs o null). Devuelve {pct,best,info,reasons}.
+  var info=podio.map(function(t){return (t&&qmap[t.n]&&!(el&&el.has(t.n)))?qmap[t.n]:null;});
+  var best=0,mask,p;
+  for(mask=1;mask<16;mask++){
+    var S=[];for(p=0;p<4;p++)if(mask&(1<<p))S.push(p);
+    if(S.some(function(p){return !info[p];}))continue;            // equipo fuera del bracket/eliminado
+    var seen={},dup=false;S.forEach(function(p){if(seen[info[p].q])dup=true;seen[info[p].q]=1;});
+    if(dup)continue;                                              // dos en el mismo cuarto -> imposible
+    var fin=S.filter(function(p){return p<2;});
+    if(fin.length===2&&info[fin[0]].half===info[fin[1]].half)continue; // campeon+subcampeon mismo lado
+    var thr=S.filter(function(p){return p>=2;});
+    if(thr.length===2&&info[thr[0]].half===info[thr[1]].half)continue; // 3o+4o mismo lado
+    if(S.length>best)best=S.length;
+  }
+  var nm=['campe\u00f3n','subcampe\u00f3n','3\u00ba','4\u00ba'],reasons=[],a,b;
+  for(p=0;p<4;p++){if(podio[p]&&!info[p])reasons.push(podio[p].n+' ('+nm[p]+') no est\u00e1 en el bracket proyectado o ya qued\u00f3 fuera');}
+  if(info[0]&&info[1]&&info[0].half===info[1].half)reasons.push('campe\u00f3n y subcampe\u00f3n caen del mismo lado (se cruzar\u00edan antes de la final)');
+  if(info[2]&&info[3]&&info[2].half===info[3].half)reasons.push('3\u00ba y 4\u00ba caen del mismo lado');
+  for(a=0;a<4;a++)for(b=a+1;b<4;b++){if(info[a]&&info[b]&&info[a].q===info[b].q)reasons.push(podio[a].n+' y '+podio[b].n+' caer\u00edan en el mismo cuarto del bracket');}
+  return {pct:Math.round(best/4*100),best:best,info:info,reasons:reasons};
+}
+function placedInR32(rb){var c=0;rb.r32.forEach(function(m){if(m.h)c++;if(m.a)c++;});return c;}
 function getRlE(){
   var rst={};GS.forEach(function(g){rst[g]=cSt(g,rGr).order;});
   var el=new Set();
+  // Datos por grupo: pts/dg/gf actuales, partidos restantes y puntos MAXIMOS aun alcanzables.
+  var info={};
   GS.forEach(function(g){
-    var qr=calcQualStatus(g,rGr);
-    qr.status.forEach(function(st,idx){if(st==='e')el.add(TEAMS[g][idx].n);});
+    var s=cSt(g,rGr),rem=[0,0,0,0];
+    MU.forEach(function(p,mi){var sc=rGr[g]?rGr[g][mi]:null;if(sc&&sc.h!=null&&sc.a!=null)return;rem[p[0]]++;rem[p[1]]++;});
+    info[g]={pts:s.pts,gd:s.gd,gf:s.gf,rem:rem,maxP:s.pts.map(function(p,i){return p+rem[i]*3;}),order:s.order};
+  });
+  // Cota inferior de los puntos del 3ro final de cada grupo = puntos actuales de su 3ro
+  // (los 3 de arriba solo pueden sumar; siempre habra >=3 equipos con >= esos puntos).
+  var thirdFloor={};GS.forEach(function(g){thirdFloor[g]=info[g].pts[info[g].order[2]]||0;});
+  GS.forEach(function(g){
+    var done=info[g].rem.every(function(r){return r===0;});
+    for(var idx=0;idx<4;idx++){
+      var maxT,blockers;
+      if(done){
+        var pos=info[g].order.indexOf(idx);
+        if(pos<=1)continue;                                   // 1ro/2do -> avanza directo
+        if(pos===3){el.add(TEAMS[g][idx].n);continue;}        // 4to definitivo -> eliminado
+        maxT=info[g].pts[idx];                                 // 3ro definitivo: compite por mejor tercero
+        blockers=0;GS.forEach(function(g2){if(g2!==g&&thirdFloor[g2]>maxT)blockers++;});
+        if(blockers>=8)el.add(TEAMS[g][idx].n);
+        continue;
+      }
+      // Grupo en curso: usar puntos maximos alcanzables.
+      maxT=info[g].maxP[idx];
+      var guaranteedAbove=0;for(var x=0;x<4;x++){if(x!==idx&&info[g].pts[x]>maxT)guaranteedAbove++;}
+      if(guaranteedAbove<=1)continue;                          // aun puede ser top-2 -> vivo
+      if(guaranteedAbove>=3){el.add(TEAMS[g][idx].n);continue;}// ni 3ro puede ser -> eliminado
+      blockers=0;GS.forEach(function(g2){if(g2!==g&&thirdFloor[g2]>maxT)blockers++;}); // a lo sumo 3ro
+      if(blockers>=8)el.add(TEAMS[g][idx].n);                  // 8 grupos con 3ro seguro mejor -> no entra
+    }
   });
   var res=buildBkt(rGr,rst,rKo);
   ['r32','r16','qf','sf'].forEach(function(r){
@@ -1510,6 +1579,20 @@ function renderPodium(){
     h+='<\/div><div class="pblock"><div class="pnum">'+nums[vi]+'<\/div><div class="ppts">'+pts[vi]+'<\/div><\/div><\/div>';
   });
   cont.innerHTML=h;
+  var fc=document.getElementById('podio-feas');
+  if(fc){
+    var rstM={};GS.forEach(function(g){rstM[g]=cSt(g,rGr).order;});
+    var rbM=buildBkt(rGr,rstM,rKo);
+    if(placedInR32(rbM)>=32){
+      var fM=podioFeasibility(teams,realQuartersMap(rbM),getRlE());
+      var col=fM.pct>=100?'#2a8a4c':fM.pct>=50?'#c9a227':'#e05050';
+      var hh='<div style="border:1px solid '+col+';background:rgba(0,0,0,0.2);padding:9px 12px;">'+
+        '<div style="font-size:13px;color:'+col+';font-weight:700;">Maximo alcanzable segun el bracket: '+fM.pct+'%<\/div>'+
+        '<div style="font-size:10px;color:var(--muted);margin-top:3px;">Maximo de posiciones de tu podio que pueden lograrse a la vez segun en que lado del cuadro proyectado cae cada equipo.<\/div>';
+      if(fM.pct<100&&fM.reasons.length)hh+='<div style="font-size:11px;color:var(--text);margin-top:5px;">&#9888;&#65039; '+fM.reasons.slice(0,2).join('; ')+'.<\/div>';
+      fc.innerHTML=hh+'<\/div>';
+    }else{fc.innerHTML='<div style="font-size:11px;color:var(--muted);text-align:center;">El % alcanzable por bracket aparecera cuando se proyecten los 16avos (faltan resultados de grupos).<\/div>';}
+  }
 }
 
 async function renderPodiosTab(){
@@ -1519,6 +1602,10 @@ async function renderPodiosTab(){
   if(lk)lk.style.display='none';if(op)op.style.display='block';
   await loadRD();
   var el=getRlE(),rp=getRlP();
+  var rstP={};GS.forEach(function(g){rstP[g]=cSt(g,rGr).order;});
+  var rbP=buildBkt(rGr,rstP,rKo);
+  var qmapP=realQuartersMap(rbP);
+  var bracketReady=placedInR32(rbP)>=32; // todos los 16avos proyectados
   var offR=await stG('official_podio')||[null,null,null,null];
   var offP=offR.map(function(n){return n?Object.values(TEAMS).flat().find(function(t){return t.n===n;})||null:null;});
   var users=await getAllUsers();
@@ -1541,13 +1628,15 @@ async function renderPodiosTab(){
       if(alreadyWon){maxPos+=PPTS[i];}
       else if(!alreadyLost&&t&&!teamEliminated){maxPos+=PPTS[i];}
     });
-    return{name:u.name,pts:pts2,maxPos:maxPos,podio:podio};
+    return{name:u.name,pts:pts2,maxPos:maxPos,podio:podio,feas:podioFeasibility(podio,qmapP,el)};
   }).sort(function(a,b){return b.maxPos-a.maxPos||b.pts-a.pts;});
 
-  var h='<div class="ibox" style="margin-bottom:10px;">Ordenado por el maximo de puntos que cada quien aun puede alcanzar segun los resultados reales (no solo lo ya confirmado).<\/div>';
+  var h='<div class="ibox" style="margin-bottom:10px;">Ordenado por el maximo de puntos que cada quien aun puede alcanzar segun los resultados reales (no solo lo ya confirmado). El % "Bracket" es el maximo de posiciones del podio que pueden lograrse a la vez segun en que lado del cuadro proyectado cae cada equipo.<\/div>';
   ranked.forEach(function(u){
     var maxLabel=u.maxPos>u.pts?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(max '+u.maxPos+')<\/span>':'';
-    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+u.name+'<\/span><span class="ptcard-pts">'+u.pts+'pts'+maxLabel+'<\/span><\/div><div class="ptpodio">';
+    var f=u.feas,fcol=f.pct>=100?'#2a8a4c':f.pct>=50?'#c9a227':'#e05050';
+    var fBadge=bracketReady?'<span style="font-size:10px;color:'+fcol+';border:1px solid '+fcol+';padding:0 5px;margin-left:6px;" title="Maximo del podio alcanzable segun el bracket">Bracket '+f.pct+'%<\/span>':'<span style="font-size:10px;color:var(--muted);margin-left:6px;">Bracket: &mdash;<\/span>';
+    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+u.name+fBadge+'<\/span><span class="ptcard-pts">'+u.pts+'pts'+maxLabel+'<\/span><\/div><div class="ptpodio">';
     u.podio.forEach(function(t,pi){
       if(!t){h+='<div class="ptpos unk"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°<\/div><div class="ptpos-fl">?<\/div><div class="ptpos-nm">-<\/div><div class="ptpos-st">-<\/div><\/div>';return;}
       var isEl=el.has(t.n),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
@@ -1555,7 +1644,9 @@ async function renderPodiosTab(){
       var st2=pW?'Acerto':isEl?'Eliminado':pL?'Pos. perdida':'Sigue vivo';
       h+='<div class="ptpos '+cls2+'"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°<\/div><div class="ptpos-fl">'+flagImg(t.f,24)+'<\/div><div class="ptpos-nm">'+t.n+'<\/div><div class="ptpos-st">'+st2+'<\/div><\/div>';
     });
-    h+='<\/div><\/div>';
+    h+='<\/div>';
+    if(bracketReady&&f.pct<100&&f.reasons.length)h+='<div style="padding:4px 9px 8px;font-size:10px;color:var(--muted);line-height:1.4;">&#9888;&#65039; Limita el podio: '+f.reasons.slice(0,2).join('; ')+'.<\/div>';
+    h+='<\/div>';
   });
   cont.innerHTML=h;
 }
@@ -1937,9 +2028,9 @@ async function renderPosPublic(){
   await loadRD();
   var tabsEl=document.getElementById('pos-rtabs');
   if(tabsEl){
-    var lbs={grupos:'Grupos',r32:'16avos',r16:'Octavos',qf:'Cuartos',sf:'Semis',third:'3er Lugar',final:'Final'};
+    var lbs={grupos:'Grupos',bracket:'Bracket',r32:'16avos',r16:'Octavos',qf:'Cuartos',sf:'Semis',third:'3er Lugar',final:'Final'};
     tabsEl.innerHTML='';
-    ['grupos','r32','r16','qf','sf','third','final'].forEach(function(r){
+    ['grupos','bracket','r32','r16','qf','sf','third','final'].forEach(function(r){
       var btn=document.createElement('button');
       btn.className='rr-rtab'+(r===posTab?' active':'');
       btn.textContent=lbs[r];
@@ -1969,6 +2060,40 @@ async function renderPosPublic(){
     });
     h+='<\/div>';
     cont.innerHTML=h;
+  }else if(posTab==='bracket'){
+    var rstB={};GS.forEach(function(g){rstB[g]=rSt[g]||[0,1,2,3];});
+    var rbB=buildBkt(rGr,rstB,rKo);
+    function bSlot(t,src){
+      return '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;min-height:26px;">'+
+        (t?(flagImg(t.f,18)+'<span style="font-size:13px;">'+t.n+'<\/span>'):'<span style="color:var(--muted);font-size:11px;font-style:italic;">'+src+'<\/span>')+'<\/div>';
+    }
+    function bMatch(lbl,hHtml,aHtml,win){
+      return '<div style="border:1px solid var(--border);background:#0d0d05;">'+
+        '<div style="font-size:9px;letter-spacing:1px;color:var(--muted);padding:3px 8px;border-bottom:1px solid var(--border);">'+lbl+'<\/div>'+
+        hHtml+'<div style="height:1px;background:#1a1a10;"><\/div>'+aHtml+
+        (win?'<div style="padding:3px 8px;background:#0a1208;border-top:1px solid #1a3a22;font-size:10px;color:#2a8a4c;font-weight:700;">Avanza: '+win+'<\/div>':'')+'<\/div>';
+    }
+    function bRound(title,cards){
+      return '<div style="margin-bottom:15px;"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:2px;color:var(--gold);margin-bottom:7px;">'+title+'<\/div>'+
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;">'+cards.join('')+'<\/div><\/div>';
+    }
+    function r32src(sel){if(!sel)return '?';if(sel.tf)return '3&ordm; ('+sel.tf.join('/')+')';return (sel.r===0?'1&ordm; ':'2&ordm; ')+sel.g;}
+    var r32lab=R32.map(function(d){return d.l;}),r16lab=R16P.map(function(p,i){return'P'+(89+i);}),qflab=['P97','P98','P99','P100'],sflab=['P101','P102'];
+    function winOf(bk,ks,i){var k=ks&&ks[i]?ks[i]:null,b=bk?bk[i]:null;if(!k||!k.w||!b)return null;return(k.w==='h'?b.h:b.a);}
+    var hh='<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Arbol proyectado segun las posiciones actuales. Los 16avos usan los clasificados de cada grupo (terceros = proyeccion). Las rondas siguientes muestran de que partido viene cada llave; cuando el admin cargue un ganador, aparece el equipo.<\/div>';
+    var c32=rbB.r32.map(function(mb,i){var w=winOf(rbB.r32,rKo.r32,i);return bMatch(r32lab[i],bSlot(mb.h,r32src(R32[i].h)),bSlot(mb.a,r32src(R32[i].a)),w?w.n:null);});
+    hh+=bRound('16avos de Final',c32);
+    var c16=rbB.r16.map(function(mb,i){var w=winOf(rbB.r16,rKo.r16,i);return bMatch(r16lab[i],bSlot(mb.h,'Gana '+r32lab[R16P[i][0]]),bSlot(mb.a,'Gana '+r32lab[R16P[i][1]]),w?w.n:null);});
+    hh+=bRound('Octavos de Final',c16);
+    var cqf=rbB.qf.map(function(mb,i){var w=winOf(rbB.qf,rKo.qf,i);return bMatch(qflab[i],bSlot(mb.h,'Gana '+r16lab[QFP[i][0]]),bSlot(mb.a,'Gana '+r16lab[QFP[i][1]]),w?w.n:null);});
+    hh+=bRound('Cuartos de Final',cqf);
+    var csf=rbB.sf.map(function(mb,i){var w=winOf(rbB.sf,rKo.sf,i);return bMatch(sflab[i],bSlot(mb.h,'Gana '+qflab[SFP[i][0]]),bSlot(mb.a,'Gana '+qflab[SFP[i][1]]),w?w.n:null);});
+    hh+=bRound('Semifinales',csf);
+    var fbB=rbB.final[0]||{h:null,a:null},fw=winOf(rbB.final,rKo.final,0);
+    hh+=bRound('Final',[bMatch('P104',bSlot(fbB.h,'Gana P101'),bSlot(fbB.a,'Gana P102'),fw?fw.n:null)]);
+    var tbB=rbB.third[0]||{h:null,a:null},tw=winOf(rbB.third,rKo.third,0);
+    hh+=bRound('Tercer Lugar',[bMatch('P103',bSlot(tbB.h,'Pierde P101'),bSlot(tbB.a,'Pierde P102'),tw?tw.n:null)]);
+    cont.innerHTML=hh;
   }else{
     var rst={};GS.forEach(function(g){rst[g]=rSt[g]||[0,1,2,3];});
     var rb=buildBkt(rGr,rst,rKo);

@@ -1139,6 +1139,42 @@ function gBT(gr,sts){
   if(gr===rGr&&rThirdOv)arr=applyThirdOverride(arr,rThirdOv);
   return arr;
 }
+// Conjunto de nombres de terceros YA clasificados a 16avos (peor caso del tercero vs. maximo
+// alcanzable de los terceros rivales). No requiere que el grupo este terminado. Un empate exacto
+// en el borde 8/9 NO se confirma (ninguno esta garantizado), que es lo que el override decide aparte.
+function confirmedThirds(gr){
+  var info={};
+  GS.forEach(function(g){
+    var s=cSt(g,gr),rem=[0,0,0,0];
+    MU.forEach(function(p,mi){var rs=gr[g]?gr[g][mi]:null;if(rs&&rs.h!==null&&rs.a!==null)return;rem[p[0]]++;rem[p[1]]++;});
+    var maxP=[0,1,2,3].map(function(i){return s.pts[i]+3*rem[i];});
+    info[g]={s:s,maxP:maxP,done:(rem[0]+rem[1]+rem[2]+rem[3])===0};
+  });
+  function thirdCeil(g){var m=info[g].maxP.slice().sort(function(a,b){return b-a;});return m[2];} // cota sup. del 3ro final
+  var conf=new Set();
+  GS.forEach(function(g){
+    var gi=info[g],ord=gi.s.order,ti=ord[2];
+    var Tf=gi.s.pts[ti],Td=gi.s.gd[ti],Tg=gi.s.gf[ti];
+    // cond1: el 3ro actual no puede caer a 4to (a lo sumo 2 rivales de su grupo pueden quedar por encima)
+    var lockedTop3=gi.done?true:([ord[0],ord[1],ord[3]].filter(function(idx){return gi.maxP[idx]>=Tf;}).length<=2);
+    if(!lockedTop3)return;
+    // cond2: cuantos grupos rivales NO estan seguros por debajo (peor caso para T)
+    var notBelow=0;
+    GS.forEach(function(h){
+      if(h===g)return;var hi=info[h];
+      if(gi.done&&hi.done){
+        var hj=hi.s.order[2],hp=hi.s.pts[hj],hd=hi.s.gd[hj],hg=hi.s.gf[hj];
+        var below=(hp<Tf)||(hp===Tf&&(hd<Td||(hd===Td&&hg<Tg)));
+        if(!below)notBelow++;
+      }else{
+        var hc=hi.done?hi.s.pts[hi.s.order[2]]:thirdCeil(h);
+        if(hc>=Tf)notBelow++; // por puntos (conservador) cuando hay partidos por jugar
+      }
+    });
+    if(notBelow<=7)conf.add(TEAMS[g][ti].n);
+  });
+  return conf;
+}
 
 function buildBkt(gr,sts,ko){
   var qt=gBT(gr,sts).slice(0,8);
@@ -2063,9 +2099,14 @@ async function renderPosPublic(){
   }else if(posTab==='bracket'){
     var rstB={};GS.forEach(function(g){rstB[g]=rSt[g]||[0,1,2,3];});
     var rbB=buildBkt(rGr,rstB,rKo);
-    function bSlot(t,src){
-      return '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;min-height:26px;">'+
-        (t?(flagImg(t.f,18)+'<span style="font-size:13px;">'+t.n+'<\/span>'):'<span style="color:var(--muted);font-size:11px;font-style:italic;">'+src+'<\/span>')+'<\/div>';
+    var confMapB={},confThirdSetB=confirmedThirds(rGr);
+    GS.forEach(function(g){var qr=calcQualStatus(g,rGr),ord=rstB[g];var fl=!!qr.firstPlace[ord[0]];confMapB[g]={first:fl,second:fl&&qr.status[ord[1]]==='q'};});
+    function bConfR32(sel,team){if(!sel||!team)return false;if(sel.tf)return confThirdSetB.has(team.n);return sel.r===0?confMapB[sel.g].first:confMapB[sel.g].second;}
+    function bSlot(t,src,green){
+      var inner;
+      if(t){var nm=green?'<span style="color:#2a8a4c;font-weight:700;">'+t.n+'<\/span>':t.n;inner=flagImg(t.f,18)+'<span style="font-size:13px;">'+nm+'<\/span>';}
+      else inner='<span style="color:var(--muted);font-size:11px;font-style:italic;">'+src+'<\/span>';
+      return '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;min-height:26px;">'+inner+'<\/div>';
     }
     function bMatch(lbl,hHtml,aHtml,win){
       return '<div style="border:1px solid var(--border);background:#0d0d05;">'+
@@ -2085,7 +2126,7 @@ async function renderPosPublic(){
     function leavesQF(k){return R16P[QFP[k][0]].concat(R16P[QFP[k][1]]);}       // 16avos que alimentan un cuarto (4)
     function leavesSF(s){return leavesQF(SFP[s][0]).concat(leavesQF(SFP[s][1]));} // 16avos que alimentan una semi (8)
     var hh='<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Arbol proyectado segun las posiciones actuales. Los 16avos usan los clasificados de cada grupo (terceros = proyeccion). Las rondas siguientes muestran de que partido viene cada llave; cuando el admin cargue un ganador, aparece el equipo.<\/div>';
-    var c32=rbB.r32.map(function(mb,i){var w=winOf(rbB.r32,rKo.r32,i);return bMatch(r32lab[i],bSlot(mb.h,r32src(R32[i].h)),bSlot(mb.a,r32src(R32[i].a)),w?w.n:null);});
+    var c32=rbB.r32.map(function(mb,i){var w=winOf(rbB.r32,rKo.r32,i);return bMatch(r32lab[i],bSlot(mb.h,r32src(R32[i].h),bConfR32(R32[i].h,mb.h)),bSlot(mb.a,r32src(R32[i].a),bConfR32(R32[i].a,mb.a)),w?w.n:null);});
     hh+=bRound('16avos de Final',c32);
     var c16=rbB.r16.map(function(mb,i){var w=winOf(rbB.r16,rKo.r16,i);return bMatch(r16lab[i],bSlot(mb.h,'Gana '+r32lab[R16P[i][0]]+candFlags([R16P[i][0]])),bSlot(mb.a,'Gana '+r32lab[R16P[i][1]]+candFlags([R16P[i][1]])),w?w.n:null);});
     hh+=bRound('Octavos de Final',c16);
@@ -2103,6 +2144,7 @@ async function renderPosPublic(){
     var rb=buildBkt(rGr,rst,rKo);
     // Precompute mathematical confirmation per group: which slot (1st/2nd) is locked in
     var confMap={}; // confMap[g] = {first:bool, second:bool}
+    var confThirdSet=confirmedThirds(rGr); // nombres de terceros ya clasificados
     GS.forEach(function(g){
       var qr=calcQualStatus(g,rGr);
       var order=rst[g];
@@ -2113,8 +2155,9 @@ async function renderPosPublic(){
       var firstLocked=!!qr.firstPlace[firstIdx];
       confMap[g]={first:firstLocked,second:firstLocked&&qr.status[secondIdx]==='q'};
     });
-    function slotConfirmed(sel){
-      if(!sel||sel.tf)return false; // third-place slots are never simply "confirmed" here
+    function slotConfirmed(sel,team){
+      if(!sel)return false;
+      if(sel.tf)return !!(team&&confThirdSet.has(team.n)); // tercero: verde si ya clasifico (aunque el cruce exacto pueda moverse)
       return sel.r===0?confMap[sel.g].first:confMap[sel.g].second;
     }
     var kRounds={r32:{n:16,lbls:R32.map(function(d){return d.l;}),vs:R32.map(function(d){return d.v;}),bk:rb.r32,sels:R32},r16:{n:8,lbls:R16P.map(function(p,i){return'P'+(89+i);}),vs:R16V,bk:rb.r16},qf:{n:4,lbls:['P97','P98','P99','P100'],vs:QFV,bk:rb.qf},sf:{n:2,lbls:['P101','P102'],vs:SFV,bk:rb.sf},third:{n:1,lbls:['P103'],vs:['Dallas-ATT'],bk:rb.third},final:{n:1,lbls:['P104'],vs:['Nueva York-MetLife'],bk:rb.final}};
@@ -2123,8 +2166,8 @@ async function renderPosPublic(){
     Array(rd.n).fill(0).forEach(function(x,idx){
       var k=rKo[posTab]&&rKo[posTab][idx]?rKo[posTab][idx]:{w:null},m2=rd.bk[idx]||{h:null,a:null},hm=m2.h,am=m2.a,w=k.w;
       h+='<div class="mcard"><div class="mcard-hdr"><span>'+rd.lbls[idx]+'<\/span><span style="font-size:8px;color:var(--muted);">'+rd.vs[idx]+'<\/span><\/div>';
-      var hConf=(posTab==='r32'&&hm&&slotConfirmed(rd.sels[idx].h));
-      var aConf=(posTab==='r32'&&am&&slotConfirmed(rd.sels[idx].a));
+      var hConf=(posTab==='r32'&&hm&&slotConfirmed(rd.sels[idx].h,hm));
+      var aConf=(posTab==='r32'&&am&&slotConfirmed(rd.sels[idx].a,am));
       var hConfMark=hConf?'<span style="font-size:8px;color:#2a8a4c;" title="Confirmado matematicamente">&#9989;<\/span>':'';
       var aConfMark=aConf?'<span style="font-size:8px;color:#2a8a4c;" title="Confirmado matematicamente">&#9989;<\/span>':'';
       // Nombre en verde cuando el equipo ya esta confirmado en esta llave (y aun no hay ganador del partido)

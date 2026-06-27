@@ -2080,12 +2080,14 @@ async function renderPosPublic(){
     function r32src(sel){if(!sel)return '?';if(sel.tf)return '3&ordm; ('+sel.tf.join('/')+')';return (sel.r===0?'1&ordm; ':'2&ordm; ')+sel.g;}
     var r32lab=R32.map(function(d){return d.l;}),r16lab=R16P.map(function(p,i){return'P'+(89+i);}),qflab=['P97','P98','P99','P100'],sflab=['P101','P102'];
     function winOf(bk,ks,i){var k=ks&&ks[i]?ks[i]:null,b=bk?bk[i]:null;if(!k||!k.w||!b)return null;return(k.w==='h'?b.h:b.a);}
+    // Banderas de los equipos que pueden salir de una llave (candidatos), dados los indices de 16avos.
+    function candFlags(idxs){var fl='';idxs.forEach(function(r){var m=rbB.r32[r];if(m){if(m.h)fl+=flagImg(m.h.f,13);if(m.a)fl+=flagImg(m.a.f,13);}});return fl?' <span style="display:inline-flex;gap:1px;vertical-align:middle;opacity:.92;">'+fl+'<\/span>':'';}
     var hh='<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Arbol proyectado segun las posiciones actuales. Los 16avos usan los clasificados de cada grupo (terceros = proyeccion). Las rondas siguientes muestran de que partido viene cada llave; cuando el admin cargue un ganador, aparece el equipo.<\/div>';
     var c32=rbB.r32.map(function(mb,i){var w=winOf(rbB.r32,rKo.r32,i);return bMatch(r32lab[i],bSlot(mb.h,r32src(R32[i].h)),bSlot(mb.a,r32src(R32[i].a)),w?w.n:null);});
     hh+=bRound('16avos de Final',c32);
-    var c16=rbB.r16.map(function(mb,i){var w=winOf(rbB.r16,rKo.r16,i);return bMatch(r16lab[i],bSlot(mb.h,'Gana '+r32lab[R16P[i][0]]),bSlot(mb.a,'Gana '+r32lab[R16P[i][1]]),w?w.n:null);});
+    var c16=rbB.r16.map(function(mb,i){var w=winOf(rbB.r16,rKo.r16,i);return bMatch(r16lab[i],bSlot(mb.h,'Gana '+r32lab[R16P[i][0]]+candFlags([R16P[i][0]])),bSlot(mb.a,'Gana '+r32lab[R16P[i][1]]+candFlags([R16P[i][1]])),w?w.n:null);});
     hh+=bRound('Octavos de Final',c16);
-    var cqf=rbB.qf.map(function(mb,i){var w=winOf(rbB.qf,rKo.qf,i);return bMatch(qflab[i],bSlot(mb.h,'Gana '+r16lab[QFP[i][0]]),bSlot(mb.a,'Gana '+r16lab[QFP[i][1]]),w?w.n:null);});
+    var cqf=rbB.qf.map(function(mb,i){var w=winOf(rbB.qf,rKo.qf,i);return bMatch(qflab[i],bSlot(mb.h,'Gana '+r16lab[QFP[i][0]]+candFlags(R16P[QFP[i][0]])),bSlot(mb.a,'Gana '+r16lab[QFP[i][1]]+candFlags(R16P[QFP[i][1]])),w?w.n:null);});
     hh+=bRound('Cuartos de Final',cqf);
     var csf=rbB.sf.map(function(mb,i){var w=winOf(rbB.sf,rKo.sf,i);return bMatch(sflab[i],bSlot(mb.h,'Gana '+qflab[SFP[i][0]]),bSlot(mb.a,'Gana '+qflab[SFP[i][1]]),w?w.n:null);});
     hh+=bRound('Semifinales',csf);

@@ -528,7 +528,7 @@ var R32=[
 ];
 var R16P=[[1,4],[0,2],[3,5],[6,7],[10,11],[8,9],[13,15],[12,14]];
 var R16V=['Philadelphia-Lincoln','Houston-NRG','Nueva York-MetLife','Cd Mexico-Azteca','Dallas-ATT','Seattle-Lumen','Atlanta-MBenz','Vancouver-BC Place'];
-var QFP=[[0,1],[2,3],[4,5],[6,7]];
+var QFP=[[0,1],[4,5],[2,3],[6,7]];
 var QFV=['Boston-Gillette','Los Angeles-SoFi','Miami-Hard Rock','Kansas City-Arrowhead'];
 var SFP=[[0,1],[2,3]];
 var SFV=['Dallas-ATT','Atlanta-MBenz'];
@@ -1529,7 +1529,7 @@ function renderKO(){
     {id:'r16',name:'Octavos',bk:BKT.r16,ks:koSc.r16,lbls:R16P.map(function(p,i){return'P'+(89+i);}),vs:R16V},
     {id:'qf',name:'Cuartos',bk:BKT.qf,ks:koSc.qf,lbls:['P97','P98','P99','P100'],vs:QFV},
     {id:'sf',name:'Semis',bk:BKT.sf,ks:koSc.sf,lbls:['P101','P102'],vs:SFV},
-    {id:'third',name:'3er Lugar',bk:BKT.third,ks:koSc.third,lbls:['P103'],vs:['Dallas-ATT']},
+    {id:'third',name:'3er Lugar',bk:BKT.third,ks:koSc.third,lbls:['P103'],vs:['Miami-Hard Rock']},
     {id:'final',name:'Final',bk:BKT.final,ks:koSc.final,lbls:['P104'],vs:['Nueva York-MetLife']}
   ];
   tabsEl.innerHTML='';cont.innerHTML='';

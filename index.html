@@ -174,6 +174,10 @@ h1 span{color:var(--gold);}
 .r32-side{flex:1;display:flex;align-items:center;gap:6px;}
 .r32-vs{color:var(--muted);font-size:10px;padding:0 8px;}
 .r32-num{font-size:9px;color:var(--muted);width:20px;}
+.spinner{width:20px;height:20px;border:3px solid #2a3040;border-top-color:var(--gold);border-radius:50%;display:inline-block;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.view{animation:fadein .18s ease-out;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 </style>
 </head>
 <body>
@@ -199,6 +203,7 @@ h1 span{color:var(--gold);}
     <div class="hsub">Grupos &middot; Eliminatorias por fases &middot; Puntos independientes</div>
     <div class="ubar">
       <span class="utag" id="utag">&mdash;</span>
+      <span id="connind" style="font-size:10px;color:var(--muted);">&hellip;</span>
       <span class="sind" id="sind">Guardado</span>
       <button class="ubtn" onclick="doLogout()">Salir</button>
     </div>
@@ -234,13 +239,13 @@ h1 span{color:var(--gold);}
   </div>
   <div id="tab-ranking" class="view">
     <div style="max-width:1100px;margin:0 auto;padding:10px 0;">
-      <div id="rank-cont"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
+      <div id="rank-cont"><div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"></span>Cargando...</div></div>
     </div>
   </div>
   <div id="tab-evol" class="view">
     <div style="max-width:1100px;margin:0 auto;padding:10px 0;">
       <div class="ibox">Evolucion de puntos totales por dia. Las lineas punteadas marcan el inicio de cada fase. Toca chips para elegir quien se muestra en la grafica y el detalle de abajo (sin selecciones, se muestran todos en la grafica sin detalle).</div>
-      <div id="evol-cont"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
+      <div id="evol-cont"><div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"></span>Cargando...</div></div>
       <div style="margin-top:14px;">
         <label class="ll">Filtrar participantes</label>
         <div id="evol-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;"></div>
@@ -251,7 +256,7 @@ h1 span{color:var(--gold);}
   <div id="tab-pos" class="view">
     <div style="max-width:1100px;margin:0 auto;padding:10px 0;">
       <div class="ibox">Posiciones actuales de cada grupo segun resultados reales cargados, y los cruces de Dieciseisavos ya confirmados con esos equipos.</div>
-      <div id="pos-cont"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
+      <div id="pos-cont"><div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"></span>Cargando...</div></div>
     </div>
   </div>
   <div id="tab-admin" class="view">
@@ -459,10 +464,64 @@ async function getDB(){
     var fd=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
     var app;try{app=fa.getApp('mw26');}catch(e){app=fa.initializeApp(FB,'mw26');}
     _db=fd.getDatabase(app);
-    window._r=fd.ref;window._g=fd.get;window._s=fd.set;window._d=fd.remove;
+    window._r=fd.ref;window._g=fd.get;window._s=fd.set;window._d=fd.remove;window._on=fd.onValue;
   }catch(e){console.error('FB:',e.message);}
   _fbb=false;return _db;
 }
+
+// ── SINCRONIZACION EN VIVO ─────────────────────
+var _liveUnsub=[];
+function setConnStatus(live){
+  var el=document.getElementById('connind');if(!el)return;
+  el.textContent=live?'🟢 En vivo':'🔴 Sin conexion';
+  el.style.color=live?'#2a8a4c':'var(--red)';
+}
+function refreshLiveViews(){
+  var activeTab=document.querySelector('.view.active');
+  if(!activeTab)return;
+  var id=activeTab.id;
+  if(id==='tab-ranking')renderRanking();
+  else if(id==='tab-evol')renderEvol();
+  else if(id==='tab-pos')renderPosiciones();
+  else if(id==='tab-elim')renderElim();
+  else if(id==='tab-admin'&&adm)renderAdmin();
+}
+async function startLiveSync(){
+  var db=await getDB();
+  if(!db){setConnStatus(false);return;}
+  stopLiveSync();
+  try{
+    _liveUnsub.push(window._on(window._r(db,PFX+'real_results'),function(snap){
+      rr=snap.exists()?snap.val():{gr:{},ko:{}};
+      try{localStorage.setItem(PFX+'real_results',JSON.stringify(rr));}catch(e){}
+      refreshLiveViews();
+    }));
+    _liveUnsub.push(window._on(window._r(db,PFX+'phases'),function(snap){
+      phases=snap.exists()?snap.val():{};
+      try{localStorage.setItem(PFX+'phases',JSON.stringify(phases));}catch(e){}
+      refreshLiveViews();
+    }));
+    _liveUnsub.push(window._on(window._r(db,PFX+'third_override'),function(snap){
+      thirdOv=snap.exists()?snap.val():null;
+      refreshLiveViews();
+    }));
+    _liveUnsub.push(window._on(window._r(db,PFX+'__idx__'),function(snap){
+      refreshLiveViews();
+    }));
+    if(CU&&CU!=='__adm__'){
+      _liveUnsub.push(window._on(window._r(db,PFX+'user_'+CU),function(snap){
+        if(!snap.exists())return;
+        var u=snap.val();
+        var wasExt=uExt;
+        uExt=!!u.extended;
+        if(uExt&&!wasExt){uLk=false;applyLk();renderGrupos();alert('El admin te dio una extension. Ya puedes editar.');}
+        else if(!uExt&&wasExt){applyLk();}
+      }));
+    }
+    setConnStatus(true);
+  }catch(e){setConnStatus(false);}
+}
+function stopLiveSync(){_liveUnsub.forEach(function(u){try{u();}catch(e){}});_liveUnsub=[];}
 async function stG(k){
   try{var db=await getDB();if(db){var s=await window._g(window._r(db,PFX+k));if(s.exists()){var v=s.val();try{localStorage.setItem(PFX+k,JSON.stringify(v));}catch(e){}return v;}}}catch(e){}
   try{var v2=localStorage.getItem(PFX+k);return v2?JSON.parse(v2):null;}catch(e){return null;}
@@ -612,17 +671,6 @@ function isGrLocked(){return uLk||isPast();}
 // Save/load
 var saveTimer=null;
 function sched(){clearTimeout(saveTimer);saveTimer=setTimeout(doSave,900);}
-async function checkExt(){
-  if(!CU||CU==='__adm__')return;
-  try{
-    var u=await stG('user_'+CU);
-    if(u&&u.extended&&!uExt){
-      uExt=true;uLk=false;applyLk();renderGrupos();
-      alert('El admin te dio una extension. Ya puedes editar.');
-    }
-  }catch(e){}
-  setTimeout(checkExt,30000);
-}
 async function doSave(){
   if(!CU||CU==='__adm__')return;
   await stS('user_'+CU,{name:CU,code:uCd,scores:grSc,koSc:koSc,locked:uLk,extended:uExt,savedAt:new Date().toISOString()});
@@ -711,6 +759,7 @@ async function doLogin(){
     document.getElementById('utag').textContent='Admin';
     adm=true;CU='__adm__';
     await loadPhases();await loadRR();
+    startLiveSync();
     showTab('grupos',document.querySelector('.tab'));return;
   }
   ee.textContent='';be.textContent='Verificando...';be.disabled=true;
@@ -727,12 +776,13 @@ async function doLogin(){
     document.getElementById('utag').textContent=CU;
     document.getElementById('ls').style.display='none';
     document.getElementById('app').style.display='block';
-    renderAll();applyLk();renderTodayBanner();setTimeout(checkExt,30000);
+    renderAll();applyLk();renderTodayBanner();startLiveSync();
   }catch(e){ee.textContent='Error: '+e.message;console.error(e);}
   be.textContent='ENTRAR';be.disabled=false;
 }
 function doLogout(){
   if(!confirm('Salir?'))return;
+  stopLiveSync();
   CU=null;adm=false;uLk=false;uCd='';uExt=false;
   document.getElementById('app').style.display='none';
   document.getElementById('ls').style.display='flex';
@@ -933,7 +983,7 @@ function calcUserPoints(u,rrData){
 // ── RANKING ───────────────────────────────────
 async function renderRanking(){
   var cont=document.getElementById('rank-cont');if(!cont)return;
-  cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Calculando...<\/div>';
+  cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"><\/span>Calculando...<\/div>';
   await loadRR();
   var users=await getAllUsers();
   var n=users.length,total=n*FEE;
@@ -1127,7 +1177,7 @@ function getPlayedDates(rrData){
 }
 async function renderEvol(){
   var cont=document.getElementById('evol-cont');if(!cont)return;
-  cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Calculando...<\/div>';
+  cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"><\/span>Calculando...<\/div>';
   await loadRR();
   var users=await getAllUsers();
   var dates=getPlayedDates(rr);
@@ -1821,7 +1871,7 @@ function showTab(t,btn){
   document.getElementById('tab-'+t).classList.add('active');
   if(btn)btn.classList.add('active');
   if(t==='elim')renderElim();
-  if(t==='ranking'){renderRanking();if(window._rankTimer)clearInterval(window._rankTimer);window._rankTimer=setInterval(renderRanking,60000);}
+  if(t==='ranking')renderRanking();
   if(t==='evol')renderEvol();
   if(t==='pos')renderPosiciones();
   if(t==='admin')renderAdmin();
@@ -2347,7 +2397,7 @@ function calcGroupStandings(g){
 }
 async function renderPosiciones(){
   var cont=document.getElementById('pos-cont');if(!cont)return;
-  cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);">Calculando...<\/div>';
+  cont.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);"><span class="spinner"><\/span>Calculando...<\/div>';
   await loadRR();
   var standings={};
   GS.forEach(function(g){standings[g]=calcGroupStandings(g);});

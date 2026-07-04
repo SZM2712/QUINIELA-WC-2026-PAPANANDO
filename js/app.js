@@ -5,7 +5,6 @@ import {stG,stU,addIdx} from './firebase.js';
 import {initS,initRS,recSt,rebuildBkt,fmtCd,loadRD} from './logic.js';
 import {renderGG,renderGroup,renderKO,updKO,renderPodium,flagImg,showTab,toggleUBkt} from './render.js';
 import * as Admin from './admin.js';
-import {renderStats} from './features/stats.js';
 import {initReminders} from './features/notifications.js';
 
 export function isPast(){if(AppState.uExt)return false;return Date.now()>=DEADLINE.getTime();}
@@ -237,7 +236,6 @@ window.setGrSc=setGrSc;
 window.setKo=setKo;
 window.showTab=showTab;
 window.toggleUBkt=toggleUBkt;
-window.__renderStats=renderStats;
 window.__renderAdmin=Admin.renderAdmin;
 window.renderAdmin=Admin.renderAdmin;
 window.chkAdm=Admin.chkAdm;

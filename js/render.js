@@ -5,6 +5,7 @@ import {AppState} from './state.js';
 import {stG,getAllUsers} from './firebase.js';
 import {esc} from './esc.js';
 import {renderCommentToggle,refreshCommentCounts} from './features/comments.js';
+import {buildBracketTree} from './features/brackettree.js';
 
 export function flagImg(code,size,name){
   if(!code)return'';
@@ -308,42 +309,15 @@ export async function renderPosPublic(){
     var rbB=buildBkt(rGr,rstB,rKo,QFP_REAL);
     var confMapB={},confThirdSetB=confirmedThirds(rGr);
     GS.forEach(function(g){var qr=calcQualStatus(g,rGr),ord=rstB[g];var fl=!!qr.firstPlace[ord[0]];confMapB[g]={first:fl,second:fl&&qr.status[ord[1]]==='q'};});
-    function bConfR32(sel,team){if(!sel||!team)return false;if(sel.tf)return confThirdSetB.has(team.n);return sel.r===0?confMapB[sel.g].first:confMapB[sel.g].second;}
-    function bSlot(t,src,green){
-      var inner;
-      if(t){var nm=green?'<span style="color:#2a8a4c;font-weight:700;">'+t.n+'</span>':t.n;inner=flagImg(t.f,18,t.n)+'<span style="font-size:13px;">'+nm+'</span>';}
-      else inner='<span style="color:var(--muted);font-size:11px;font-style:italic;">'+src+'</span>';
-      return '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;min-height:26px;">'+inner+'</div>';
+    function confFn(round,idx,side,team){
+      if(!team)return false;
+      var sel=round==='r32'?R32[idx][side]:null;
+      if(round!=='r32')return false; // el estado "confirmado" solo aplica a los 16avos (grupos ya definidos)
+      if(sel.tf)return confThirdSetB.has(team.n);
+      return sel.r===0?confMapB[sel.g].first:confMapB[sel.g].second;
     }
-    function bMatch(lbl,hHtml,aHtml,win){
-      return '<div style="border:1px solid var(--border);background:#0d0d05;">'+
-        '<div style="font-size:9px;letter-spacing:1px;color:var(--muted);padding:3px 8px;border-bottom:1px solid var(--border);">'+lbl+'</div>'+
-        hHtml+'<div style="height:1px;background:#1a1a10;"></div>'+aHtml+
-        (win?'<div style="padding:3px 8px;background:#0a1208;border-top:1px solid #1a3a22;font-size:10px;color:#2a8a4c;font-weight:700;">Avanza: '+win+'</div>':'')+'</div>';
-    }
-    function bRound(title,cards){
-      return '<div style="margin-bottom:15px;"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:2px;color:var(--gold);margin-bottom:7px;">'+title+'</div>'+
-        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;">'+cards.join('')+'</div></div>';
-    }
-    function r32src(sel){if(!sel)return '?';if(sel.tf)return '3&ordm; ('+sel.tf.join('/')+')';return (sel.r===0?'1&ordm; ':'2&ordm; ')+sel.g;}
-    var r32lab=R32.map(function(d){return d.l;}),r16lab=R16P.map(function(p,i){return'P'+(89+i);}),qflab=['P97','P98','P99','P100'],sflab=['P101','P102'];
-    function winOf(bk,ks,i){var k=ks&&ks[i]?ks[i]:null,b=bk?bk[i]:null;if(!k||!k.w||!b)return null;return(k.w==='h'?b.h:b.a);}
-    function candFlags(idxs){var fl='';idxs.forEach(function(r){var m=rbB.r32[r];if(m){if(m.h)fl+=flagImg(m.h.f,13,m.h.n);if(m.a)fl+=flagImg(m.a.f,13,m.a.n);}});return fl?' <span style="display:inline-flex;flex-wrap:wrap;gap:1px;vertical-align:middle;opacity:.92;">'+fl+'</span>':'';}
-    function leavesQF(k){return R16P[QFP_REAL[k][0]].concat(R16P[QFP_REAL[k][1]]);}
-    function leavesSF(s){return leavesQF(SFP[s][0]).concat(leavesQF(SFP[s][1]));}
-    var hh='<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Bracket <b style="color:var(--gold);">oficial (orden FIFA)</b> del torneo real. Los 16avos usan los clasificados de cada grupo (terceros = proyeccion). De Cuartos en adelante sigue el cruce oficial FIFA. Cuando el admin cargue un ganador, aparece el equipo.</div>';
-    var c32=rbB.r32.map(function(mb,i){var w=winOf(rbB.r32,rKo.r32,i);return bMatch(r32lab[i],bSlot(mb.h,r32src(R32[i].h),bConfR32(R32[i].h,mb.h)),bSlot(mb.a,r32src(R32[i].a),bConfR32(R32[i].a,mb.a)),w?w.n:null);});
-    hh+=bRound('16avos de Final',c32);
-    var c16=rbB.r16.map(function(mb,i){var w=winOf(rbB.r16,rKo.r16,i);return bMatch(r16lab[i],bSlot(mb.h,'Gana '+r32lab[R16P[i][0]]+candFlags([R16P[i][0]])),bSlot(mb.a,'Gana '+r32lab[R16P[i][1]]+candFlags([R16P[i][1]])),w?w.n:null);});
-    hh+=bRound('Octavos de Final',c16);
-    var cqf=rbB.qf.map(function(mb,i){var w=winOf(rbB.qf,rKo.qf,i);return bMatch(qflab[i],bSlot(mb.h,'Gana '+r16lab[QFP_REAL[i][0]]+candFlags(R16P[QFP_REAL[i][0]])),bSlot(mb.a,'Gana '+r16lab[QFP_REAL[i][1]]+candFlags(R16P[QFP_REAL[i][1]])),w?w.n:null);});
-    hh+=bRound('Cuartos de Final',cqf);
-    var csf=rbB.sf.map(function(mb,i){var w=winOf(rbB.sf,rKo.sf,i);return bMatch(sflab[i],bSlot(mb.h,'Gana '+qflab[SFP[i][0]]+candFlags(leavesQF(SFP[i][0]))),bSlot(mb.a,'Gana '+qflab[SFP[i][1]]+candFlags(leavesQF(SFP[i][1]))),w?w.n:null);});
-    hh+=bRound('Semifinales',csf);
-    var fbB=rbB.final[0]||{h:null,a:null},fw=winOf(rbB.final,rKo.final,0);
-    hh+=bRound('Final',[bMatch('P104',bSlot(fbB.h,'Gana P101'+candFlags(leavesSF(0))),bSlot(fbB.a,'Gana P102'+candFlags(leavesSF(1))),fw?fw.n:null)]);
-    var tbB=rbB.third[0]||{h:null,a:null},tw=winOf(rbB.third,rKo.third,0);
-    hh+=bRound('Tercer Lugar',[bMatch('P103',bSlot(tbB.h,'Pierde P101'+candFlags(leavesSF(0))),bSlot(tbB.a,'Pierde P102'+candFlags(leavesSF(1))),tw?tw.n:null)]);
+    var hh='<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Bracket <b style="color:var(--gold);">oficial (orden FIFA)</b> del torneo real. Los 16avos usan los clasificados de cada grupo (terceros = proyeccion). Verde = confirmado matematicamente. Dorado = avanzo de verdad. 16avos &rarr; Octavos &rarr; Cuartos &rarr; Semis &rarr; Final.</div>';
+    hh+=buildBracketTree(rbB,rKo,confFn);
     cont.innerHTML=hh;
   }else{
     var rst={};GS.forEach(function(g){rst[g]=rSt[g]||[0,1,2,3];});

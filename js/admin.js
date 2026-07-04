@@ -4,7 +4,6 @@ import {AppState} from './state.js';
 import {stG,stS,stU,stD,getAllUsers,addIdx,delIdx,rawGetAll} from './firebase.js';
 import {cSt,buildBkt,deriveUP,getRlE,getRlP,rawThirds,recRS,loadRD,initRS} from './logic.js';
 import {esc} from './esc.js';
-import {appendSnapshot} from './features/stats.js';
 import {flagImg,buildUBkt} from './render.js';
 
 export function chkAdm(){
@@ -170,7 +169,6 @@ export function renderRS(){
 export async function saveRR(){
   await stS('real_results',{grSc:AppState.rGr,koSc:AppState.rKo,savedAt:new Date().toISOString()});
   var m=document.getElementById('rr-msg');if(m){m.textContent='Guardado';setTimeout(function(){m.textContent='';},3000);}
-  try{await appendSnapshot();}catch(e){console.error('stats snapshot:',e.message);}
 }
 export async function saveOP(){
   var vals=[0,1,2,3].map(function(i){var el=document.getElementById('op-'+i);return el?el.value||null:null;}).map(function(v){return v||null;});

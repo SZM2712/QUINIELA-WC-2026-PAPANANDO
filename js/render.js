@@ -368,6 +368,5 @@ export function showTab(t,btn){
   if(t==='podios')renderPodiosTab();
   if(t==='pos')renderPosPublic();
   if(t==='aciertos')renderAciertos();
-  if(t==='estadisticas')window.__renderStats&&window.__renderStats();
   if(t==='admin')window.__renderAdmin&&window.__renderAdmin();
 }

@@ -293,7 +293,6 @@ export async function loadRD(){
 }
 
 // % de aciertos de resultado (gano/perdio/empato) de cada usuario contra los partidos de grupo ya jugados.
-// Compartido entre la pestaña "Aciertos" (render.js) y el historial de "Estadisticas" (features/stats.js).
 export function computeAciertos(users,rGr){
   var anyPlayed=false;
   var stats=users.map(function(u){

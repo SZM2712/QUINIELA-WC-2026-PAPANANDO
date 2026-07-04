@@ -50,7 +50,6 @@ window.toggleComments=async function(key){
   slot.classList.add('open');
   slot.innerHTML='<div class="cmt-thread open cmt-empty">Cargando...</div>';
   var unsub=await stWatch('comments/'+key,function(data){
-    var thread=slot.querySelector('.cmt-thread')||slot;
     slot.innerHTML='<div class="cmt-thread open">'+renderThreadHtml(key,data)+'</div>';
   });
   openThreads[key]=unsub;

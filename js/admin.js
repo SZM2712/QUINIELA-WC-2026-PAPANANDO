@@ -200,7 +200,7 @@ export async function createU(){
   if(nr)nr.style.display='block';if(nc)nc.textContent=code;if(nnd)nnd.textContent='Participante: '+name;if(nn)nn.value='';
 }
 export async function copyC(){
-  var msg='Mundial 2026 - Quiniela de Papanando\n\nHola '+AppState.lastNm+'! Tu codigo de acceso es:\n\n'+AppState.lastCd+'\n\nEntra aqui: https://szm2712.github.io/Quiniela-WC2026\n\nEntrada: Q.250 - El ganador se lleva todo el pozo!';
+  var msg='Mundial 2026 - Quiniela de Papanando\n\nHola '+AppState.lastNm+'! Tu codigo de acceso es:\n\n'+AppState.lastCd+'\n\nEntra aqui: https://szm2712.github.io/QUINIELA-WC-2026/\n\nEntrada: Q.250 - El ganador se lleva todo el pozo!';
   try{await navigator.clipboard.writeText(msg);var b=event.target;b.textContent='Copiado!';setTimeout(function(){b.textContent='Copiar para WhatsApp';},2500);}
   catch(e){prompt('Copia este codigo:',AppState.lastCd);}
 }
@@ -264,7 +264,7 @@ export async function expCSV(){
   var offR=await stG('official_podio')||[null,null,null,null];
   var offP=offR.map(function(n){return n?Object.values(TEAMS).flat().find(function(t){return t.n===n;})||null:null;});
   var posLabels=['1ro Campeon','2do Subcampeon','3ro Tercer Lugar','4to Cuarto Lugar'];
-  var favorites={'Francia':92,'Brasil':90,'Espana':89,'Inglaterra':87,'Argentina':86,'Portugal':84,'Alemania':82,'Paises Bajos':80,'Belgica':75,'Uruguay':70,'EE.UU.':65,'Mexico':60,'Croacia':58,'Senegal':55,'Marruecos':54,'Japon':52,'Corea del Sur':50,'Austria':48,'Colombia':47,'Ecuador':45,'Suiza':44,'Canada':42,'Australia':40,'Turquia':38,'Noruega':35,'Suecia':34,'Iran':30,'Arabia Saudita':28,'Rep. Checa':28,'Ghana':27,'Tunez':26,'Egipto':25,'Escocia':25,'Paraguay':23,'Bosnia y Herz.':22,'Panama':22,'Qatar':20,'Uzbekistan':19,'RD del Congo':18,'Irak':17,'Jordania':16,'Argelia':15,'Sudafrica':14,'Cabo Verde':12,'Nueva Zelanda':10,'Haiti':8,'Curazao':5,'Costa de Marfil':35,'Costa Rica':21};
+  var favorites={'Francia':92,'Brasil':90,'Espana':89,'Inglaterra':87,'Argentina':86,'Portugal':84,'Alemania':82,'Paises Bajos':80,'Belgica':75,'Uruguay':70,'EE.UU.':65,'Mexico':60,'Croacia':58,'Senegal':55,'Marruecos':54,'Japon':52,'Corea del Sur':50,'Austria':48,'Colombia':47,'Ecuador':45,'Suiza':44,'Canada':42,'Australia':40,'Turquia':38,'Noruega':35,'Suecia':34,'Iran':30,'Arabia Saudita':28,'Rep. Checa':28,'Ghana':27,'Tunez':26,'Egipto':25,'Escocia':25,'Paraguay':23,'Bosnia y Herz.':22,'Panama':22,'Qatar':20,'Uzbekistan':19,'RD del Congo':18,'Irak':17,'Jordania':16,'Argelia':15,'Sudafrica':14,'Cabo Verde':12,'Nueva Zelanda':10,'Haiti':8,'Curazao':5,'Costa de Marfil':35};
   var BOLD_THRESHOLD=25;
   var podios=users.map(function(u){
     var p=deriveUP(u),pts2=0;

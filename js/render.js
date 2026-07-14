@@ -1,6 +1,6 @@
 // Renderizado de DOM: grupos, eliminatorias, podio, tabla de posiciones publica y aciertos.
 import {GS,MU,TEAMS,R32,R16P,R16V,QFP_REAL,QFV,SFP,SFV,FEE,CUR,PPTS,MSTART} from './data.js';
-import {cSt,calcQualStatus,gBT,buildBkt,rebuildBkt,deriveUP,getRlP,getRlE,podioFeasibility,realQuartersMap,placedInR32,confirmedThirds,loadRD,computeAciertos} from './logic.js';
+import {cSt,calcQualStatus,gBT,buildBkt,rebuildBkt,deriveUP,getRlP,getRlE,podioFeasibility,realQuartersMap,placedInR32,confirmedThirds,loadRD,computeAciertos,teamPosStatus} from './logic.js';
 import {AppState} from './state.js';
 import {stG,getAllUsers} from './firebase.js';
 import {esc} from './esc.js';
@@ -189,7 +189,7 @@ export async function renderPodiosTab(){
       var posDecided=rp[i]&&rp[i].n;
       var alreadyWon=posDecided&&t&&rp[i].n===t.n;
       var alreadyLost=posDecided&&(!t||rp[i].n!==t.n);
-      var teamEliminated=t&&el.has(t.n);
+      var teamEliminated=t&&!!teamPosStatus(el,t.n,i);
       if(alreadyWon){maxPos+=PPTS[i];}
       else if(!alreadyLost&&t&&!teamEliminated){maxPos+=PPTS[i];}
     });
@@ -204,9 +204,9 @@ export async function renderPodiosTab(){
     h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+esc(u.name)+fBadge+'</span><span class="ptcard-pts">'+u.pts+'pts'+maxLabel+'</span></div><div class="ptpodio">';
     u.podio.forEach(function(t,pi){
       if(!t){h+='<div class="ptpos unk"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">?</div><div class="ptpos-nm">-</div><div class="ptpos-st">-</div></div>';return;}
-      var isEl=el.has(t.n),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
-      var cls2=pW?'won':isEl||pL?'dead':'alive';
-      var st2=pW?'Acerto':isEl?'Eliminado':pL?'Pos. perdida':'Sigue vivo';
+      var st3=teamPosStatus(el,t.n,pi),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
+      var cls2=pW?'won':st3||pL?'dead':'alive';
+      var st2=pW?'Acerto':st3==='out'?'Eliminado':(st3==='noTop2'||pL)?'Pos. perdida':'Sigue vivo';
       h+='<div class="ptpos '+cls2+'"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">'+flagImg(t.f,24,t.n)+'</div><div class="ptpos-nm">'+t.n+'</div><div class="ptpos-st">'+st2+'</div></div>';
     });
     h+='</div>';

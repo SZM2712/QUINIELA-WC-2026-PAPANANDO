@@ -2,7 +2,7 @@
 import {GS,MU,TEAMS,R32,R16P,R16V,QFP_REAL,QFV,SFP,SFV,PPTS,APAS} from './data.js';
 import {AppState} from './state.js';
 import {stG,stS,stU,stD,getAllUsers,addIdx,delIdx,rawGetAll} from './firebase.js';
-import {cSt,buildBkt,deriveUP,getRlE,getRlP,rawThirds,recRS,loadRD,initRS} from './logic.js';
+import {cSt,buildBkt,deriveUP,getRlE,getRlP,rawThirds,recRS,loadRD,initRS,teamPosStatus} from './logic.js';
 import {esc} from './esc.js';
 import {flagImg,buildUBkt} from './render.js';
 
@@ -41,7 +41,7 @@ export async function renderAdmin(){
       var posDecided=rp[i]&&rp[i].n;
       var alreadyWon=posDecided&&t&&rp[i].n===t.n;
       var alreadyLost=posDecided&&(!t||rp[i].n!==t.n);
-      var teamEliminated=t&&el.has(t.n);
+      var teamEliminated=t&&!!teamPosStatus(el,t.n,i);
       if(alreadyWon){maxPos+=PPTS[i];}
       else if(!alreadyLost&&t&&!teamEliminated){maxPos+=PPTS[i];}
     });
@@ -88,9 +88,9 @@ export async function renderAdmin(){
     h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+(isW?'🏆 ':'')+lk+' '+esc(u.name)+'</span><span class="ptcard-pts">'+u.pts+'pts'+(u.maxPos>u.pts?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(max '+u.maxPos+')</span>':'')+'</span></div><div class="ptpodio">';
     u.podio.forEach(function(t,pi){
       if(!t){h+='<div class="ptpos unk"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">?</div><div class="ptpos-nm">-</div><div class="ptpos-st">-</div></div>';return;}
-      var isEl=el.has(t.n),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
-      var cls2=pW?'won':isEl||pL?'dead':'alive';
-      var st2=pW?'Acerto':isEl?'Eliminado':pL?'Pos. perdida':'Sigue vivo';
+      var st3=teamPosStatus(el,t.n,pi),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
+      var cls2=pW?'won':st3||pL?'dead':'alive';
+      var st2=pW?'Acerto':st3==='out'?'Eliminado':(st3==='noTop2'||pL)?'Pos. perdida':'Sigue vivo';
       h+='<div class="ptpos '+cls2+'"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">'+flagImg(t.f,24,t.n)+'</div><div class="ptpos-nm">'+t.n+'</div><div class="ptpos-st">'+st2+'</div></div>';
     });
     h+='</div><div style="padding:5px 9px;display:flex;gap:5px;justify-content:flex-end;border-top:1px solid var(--border);background:#0d1118;">';

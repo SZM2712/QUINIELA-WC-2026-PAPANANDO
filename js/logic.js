@@ -197,8 +197,18 @@ export function realQuartersMap(rb){
     if(m.a)out[m.a.n]={q:q,half:hf};});
   return out;
 }
+// El perdedor de semifinal NO esta eliminado del torneo (juega el partido por el 3er lugar):
+// sigue pudiendo ser 3° o 4°, pero ya no puede ser campeón ni subcampeón. `el.out` = equipos
+// realmente fuera del torneo (perdieron en Cuartos o antes); `el.noTop2` = ademas de esos,
+// los perdedores de semifinal (bloqueados solo para las posiciones 0/1).
+export function teamPosStatus(el,teamName,pos){
+  if(!teamName||!el)return null;
+  if(el.out&&el.out.has(teamName))return'out';
+  if((pos===0||pos===1)&&el.noTop2&&el.noTop2.has(teamName))return'noTop2';
+  return null;
+}
 export function podioFeasibility(podio,qmap,el){
-  var info=podio.map(function(t){return (t&&qmap[t.n]&&!(el&&el.has(t.n)))?qmap[t.n]:null;});
+  var info=podio.map(function(t,p){return (t&&qmap[t.n]&&!teamPosStatus(el,t.n,p))?qmap[t.n]:null;});
   var best=0,mask,p;
   for(mask=1;mask<16;mask++){
     var S=[];for(p=0;p<4;p++)if(mask&(1<<p))S.push(p);
@@ -219,6 +229,10 @@ export function podioFeasibility(podio,qmap,el){
   return {pct:Math.round(best/4*100),best:best,info:info,reasons:reasons};
 }
 export function placedInR32(rb){var c=0;rb.r32.forEach(function(m){if(m.h)c++;if(m.a)c++;});return c;}
+// Devuelve {out, noTop2}: `out` son los equipos ya eliminados del torneo por completo
+// (perdieron en 16avos/Octavos/Cuartos, o quedaron matematicamente fuera del grupo).
+// `noTop2` es `out` mas los perdedores de semifinal, que ya no pueden salir campeones ni
+// subcampeones pero SI pueden llegar a 3° o 4° (juegan el partido por el 3er lugar).
 export function getRlE(){
   var rGr=AppState.rGr,rKo=AppState.rKo;
   var rst={};GS.forEach(function(g){rst[g]=cSt(g,rGr).order;});
@@ -252,11 +266,16 @@ export function getRlE(){
     }
   });
   var res=buildBkt(rGr,rst,rKo,QFP_REAL);
-  ['r32','r16','qf','sf'].forEach(function(r){
+  // Solo Cuartos y antes eliminan del torneo por completo: el perdedor de semifinal sigue
+  // vivo (va al partido por el 3er lugar), asi que NO entra a `out` aqui.
+  ['r32','r16','qf'].forEach(function(r){
     var bk=res[r],ks=rKo[r]||[];
     bk.forEach(function(m,i){var k=ks[i];if(!k||!k.w||!m.h||!m.a)return;el.add((k.w==='h'?m.a:m.h).n);});
   });
-  return el;
+  var noTop2=new Set(el);
+  var sfBk=res.sf||[],sfKs=rKo.sf||[];
+  sfBk.forEach(function(m,i){var k=sfKs[i];if(!k||!k.w||!m.h||!m.a)return;noTop2.add((k.w==='h'?m.a:m.h).n);});
+  return {out:el,noTop2:noTop2};
 }
 
 // Carga los resultados reales (ingresados por el admin) en el estado compartido AppState.rGr/rKo.

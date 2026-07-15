@@ -1,5 +1,5 @@
 // Logica de grupos, terceros lugares y bracket de eliminatorias.
-import {GS,MU,TEAMS,R32,R16P,QFP,QFP_REAL,SFP} from './data.js';
+import {GS,MU,TEAMS,R32,R16P,QFP,QFP_REAL,SFP,PPTS} from './data.js';
 import {R32_SCENARIOS} from './scenarios.js';
 import {AppState} from './state.js';
 import {stG} from './firebase.js';
@@ -448,5 +448,27 @@ export function runPodiumSimulation(nSims){
     results.forEach(function(r){if(r[0]===names[0]&&r[1]===names[1]&&r[2]===names[2]&&r[3]===names[3])hits++;});
     return hits/nSims;
   }
-  return{posProb:posProb,jointProb:jointProb,nSims:nSims};
+  return{posProb:posProb,jointProb:jointProb,nSims:nSims,results:results};
+}
+// Ranking de probabilidad de GANAR la quiniela completa (mas puntos que cualquier otro
+// participante), usando las mismas `results` de runPodiumSimulation. En cada simulacion se
+// calculan los puntos de todos segun ese podio simulado; quien(es) saquen el maximo se llevan
+// el "credito" de esa simulacion (repartido si hay empate), y se promedia sobre todas.
+export function computeWinProbabilities(results,users){
+  var n=users.length;
+  if(!n||!results.length)return users.map(function(u){return{name:u.name,prob:0};});
+  var wins=users.map(function(){return 0;});
+  results.forEach(function(simPodio){
+    var pts=users.map(function(u){
+      var p=0;
+      (u.podio||[]).forEach(function(t,i){if(t&&simPodio[i]&&t.n===simPodio[i])p+=PPTS[i];});
+      return p;
+    });
+    var best=Math.max.apply(null,pts);
+    var winners=[];pts.forEach(function(p,i){if(p===best)winners.push(i);});
+    var credit=1/winners.length;
+    winners.forEach(function(i){wins[i]+=credit;});
+  });
+  return users.map(function(u,i){return{name:u.name,prob:wins[i]/results.length};})
+    .sort(function(a,b){return b.prob-a.prob;});
 }

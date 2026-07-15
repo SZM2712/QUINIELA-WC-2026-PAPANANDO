@@ -1,12 +1,20 @@
 // Renderizado de DOM: grupos, eliminatorias, podio, tabla de posiciones publica y aciertos.
 import {GS,MU,TEAMS,R32,R16P,R16V,QFP_REAL,QFV,SFP,SFV,FEE,CUR,PPTS,MSTART} from './data.js';
-import {cSt,calcQualStatus,gBT,buildBkt,rebuildBkt,deriveUP,getRlP,getRlE,podioFeasibility,realQuartersMap,placedInR32,confirmedThirds,loadRD,computeAciertos,teamPosStatus} from './logic.js';
+import {cSt,calcQualStatus,gBT,buildBkt,rebuildBkt,deriveUP,getRlP,getRlE,podioFeasibility,realQuartersMap,placedInR32,confirmedThirds,loadRD,computeAciertos,teamPosStatus,runPodiumSimulation} from './logic.js';
 import {AppState} from './state.js';
 import {stG,getAllUsers} from './firebase.js';
 import {esc} from './esc.js';
 import {renderCommentToggle,refreshCommentCounts} from './features/comments.js';
 import {buildBracketTree} from './features/brackettree.js';
 
+// Formatea una probabilidad (0-1) como texto: 1 decimal si es chica, entero si no.
+export function fmtPct(p){
+  if(p==null)return'&mdash;';
+  var v=p*100;
+  if(v<=0)return'0%';
+  if(v<10)return v.toFixed(1)+'%';
+  return Math.round(v)+'%';
+}
 export function flagImg(code,size,name){
   if(!code)return'';
   size=size||20;
@@ -169,6 +177,7 @@ export async function renderPodiosTab(){
   if(lk)lk.style.display='none';if(op)op.style.display='block';
   await loadRD();
   var el=getRlE(),rp=getRlP();
+  var sim=runPodiumSimulation();
   var rstP={};GS.forEach(function(g){rstP[g]=cSt(g,AppState.rGr).order;});
   var rbP=buildBkt(AppState.rGr,rstP,AppState.rKo);
   var qmapP=realQuartersMap(rbP);
@@ -201,13 +210,16 @@ export async function renderPodiosTab(){
     var maxLabel=u.maxPos>u.pts?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(max '+u.maxPos+')</span>':'';
     var f=u.feas,fcol=f.pct>=100?'#2a8a4c':f.pct>=50?'#c9a227':'#e05050';
     var fBadge=bracketReady?'<span style="font-size:10px;color:'+fcol+';border:1px solid '+fcol+';padding:0 5px;margin-left:6px;" title="Maximo del podio alcanzable segun el bracket">Bracket '+f.pct+'%</span>':'<span style="font-size:10px;color:var(--muted);margin-left:6px;">Bracket: &mdash;</span>';
-    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+esc(u.name)+fBadge+'</span><span class="ptcard-pts">'+u.pts+'pts'+maxLabel+'</span></div><div class="ptpodio">';
+    var jp=sim.jointProb(u.podio);
+    var jBadge='<span style="font-size:10px;color:var(--gold);border:1px solid var(--gold);padding:0 5px;margin-left:6px;" title="Probabilidad simulada de acertar los 4 puestos exactos a la vez">Podio '+fmtPct(jp)+'</span>';
+    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+esc(u.name)+fBadge+jBadge+'</span><span class="ptcard-pts">'+u.pts+'pts'+maxLabel+'</span></div><div class="ptpodio">';
     u.podio.forEach(function(t,pi){
       if(!t){h+='<div class="ptpos unk"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">?</div><div class="ptpos-nm">-</div><div class="ptpos-st">-</div></div>';return;}
       var st3=teamPosStatus(el,t.n,pi),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
       var cls2=pW?'won':st3||pL?'dead':'alive';
       var st2=pW?'Acerto':st3==='out'?'Eliminado':(st3==='noTop2'||st3==='noBottom2'||pL)?'Pos. perdida':'Sigue vivo';
-      h+='<div class="ptpos '+cls2+'"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">'+flagImg(t.f,24,t.n)+'</div><div class="ptpos-nm">'+t.n+'</div><div class="ptpos-st">'+st2+'</div></div>';
+      var prob=sim.posProb[t.n]?sim.posProb[t.n][pi]:0;
+      h+='<div class="ptpos '+cls2+'"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">'+flagImg(t.f,24,t.n)+'</div><div class="ptpos-nm">'+t.n+'</div><div class="ptpos-st">'+st2+'</div><div class="ptpos-pct" title="Probabilidad simulada de que '+esc(t.n)+' llegue a este puesto">'+fmtPct(prob)+'</div></div>';
     });
     h+='</div>';
     if(bracketReady&&f.pct<100&&f.reasons.length)h+='<div style="padding:4px 9px 8px;font-size:10px;color:var(--muted);line-height:1.4;">&#9888;&#65039; Limita el podio: '+f.reasons.slice(0,2).join('; ')+'.</div>';

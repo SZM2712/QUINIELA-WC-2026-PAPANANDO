@@ -125,6 +125,7 @@ h1 span{color:var(--gold);}
 .ptpos-nm{font-size:9px;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .ptpos-st{font-size:9px;margin-top:3px;font-weight:700;}
 .alive .ptpos-st{color:#2a8a4c;}.dead .ptpos-st{color:var(--red);}.won .ptpos-st{color:var(--gold);}
+.ptpos-pct{font-size:9px;margin-top:1px;color:var(--muted);}
 .awrap{max-width:1000px;margin:0 auto;padding:11px 0;}
 .abox{max-width:300px;margin:30px auto;background:var(--panel);border:1px solid #3a2a50;padding:24px;text-align:center;}
 .atitle{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:3px;color:#9a7ab0;margin-bottom:12px;}

@@ -2,9 +2,9 @@
 import {GS,MU,TEAMS,R32,R16P,R16V,QFP_REAL,QFV,SFP,SFV,PPTS,APAS} from './data.js';
 import {AppState} from './state.js';
 import {stG,stS,stU,stD,getAllUsers,addIdx,delIdx,rawGetAll} from './firebase.js';
-import {cSt,buildBkt,deriveUP,getRlE,getRlP,rawThirds,recRS,loadRD,initRS,teamPosStatus} from './logic.js';
+import {cSt,buildBkt,deriveUP,getRlE,getRlP,rawThirds,recRS,loadRD,initRS,teamPosStatus,runPodiumSimulation} from './logic.js';
 import {esc} from './esc.js';
-import {flagImg,buildUBkt} from './render.js';
+import {flagImg,buildUBkt,fmtPct} from './render.js';
 
 export function chkAdm(){
   var passEl=document.getElementById('ap'),errEl=document.getElementById('aerr');
@@ -32,6 +32,7 @@ export async function renderAdmin(){
   var users=await getAllUsers();
   var offR=await stG('official_podio')||[null,null,null,null];
   var el=getRlE(),rp=getRlP();
+  var sim=runPodiumSimulation();
   var offP=offR.map(function(n){return n?Object.values(TEAMS).flat().find(function(t){return t.n===n;})||null:null;});
   var pc=['var(--gold)','#9aa0aa','#a07040','var(--muted)'];
   var ranked=users.map(function(u){
@@ -85,13 +86,16 @@ export async function renderAdmin(){
     var isW=u.pts>0&&u.pts===topP;
     var lk=u.locked?'<span style="font-size:9px;padding:1px 4px;border:1px solid #1a4a2c;color:#2a8a4c;">CONF</span>':'<span style="font-size:9px;padding:1px 4px;border:1px solid #3a3010;color:#a09020;">ABIERTO</span>';
     var uid='ubkt-'+btoa(unescape(encodeURIComponent(u.name))).replace(/[^a-zA-Z0-9]/g,'');
-    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+(isW?'🏆 ':'')+lk+' '+esc(u.name)+'</span><span class="ptcard-pts">'+u.pts+'pts'+(u.maxPos>u.pts?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(max '+u.maxPos+')</span>':'')+'</span></div><div class="ptpodio">';
+    var jp=sim.jointProb(u.podio);
+    var jBadge='<span style="font-size:9px;color:var(--gold);border:1px solid var(--gold);padding:0 4px;margin-left:4px;" title="Probabilidad simulada de acertar los 4 puestos exactos a la vez">Podio '+fmtPct(jp)+'</span>';
+    h+='<div class="ptcard"><div class="ptcard-hdr"><span class="ptcard-name">'+(isW?'🏆 ':'')+lk+' '+esc(u.name)+jBadge+'</span><span class="ptcard-pts">'+u.pts+'pts'+(u.maxPos>u.pts?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(max '+u.maxPos+')</span>':'')+'</span></div><div class="ptpodio">';
     u.podio.forEach(function(t,pi){
       if(!t){h+='<div class="ptpos unk"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">?</div><div class="ptpos-nm">-</div><div class="ptpos-st">-</div></div>';return;}
       var st3=teamPosStatus(el,t.n,pi),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
       var cls2=pW?'won':st3||pL?'dead':'alive';
       var st2=pW?'Acerto':st3==='out'?'Eliminado':(st3==='noTop2'||st3==='noBottom2'||pL)?'Pos. perdida':'Sigue vivo';
-      h+='<div class="ptpos '+cls2+'"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">'+flagImg(t.f,24,t.n)+'</div><div class="ptpos-nm">'+t.n+'</div><div class="ptpos-st">'+st2+'</div></div>';
+      var prob=sim.posProb[t.n]?sim.posProb[t.n][pi]:0;
+      h+='<div class="ptpos '+cls2+'"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">'+flagImg(t.f,24,t.n)+'</div><div class="ptpos-nm">'+t.n+'</div><div class="ptpos-st">'+st2+'</div><div class="ptpos-pct">'+fmtPct(prob)+'</div></div>';
     });
     h+='</div><div style="padding:5px 9px;display:flex;gap:5px;justify-content:flex-end;border-top:1px solid var(--border);background:#0d1118;">';
     h+='<button class="abtn" style="font-size:9px;border-color:#1a3a50;color:#4a8ab0" onclick="toggleUBkt(\''+u.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" >Ver bracket</button>';

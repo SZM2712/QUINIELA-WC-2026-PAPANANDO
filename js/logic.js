@@ -348,3 +348,105 @@ export function fmtCd(diff){
   var p=[];if(d>0)p.push(d+'d');p.push(('0'+h).slice(-2)+'h');p.push(('0'+m).slice(-2)+'m');p.push(('0'+s).slice(-2)+'s');
   return p.join(' ');
 }
+
+// ── Simulacion Monte Carlo: probabilidad de que cada equipo llegue a cada puesto del podio ──
+// Usa el desempeño real en grupos (puntos*3 + diferencia de gol) como proxy de fuerza de cada
+// equipo. TODO resultado real ya decidido (grupos y eliminatorias, incluida Final/3er lugar si
+// ya se jugaron) se respeta tal cual; solo lo que aun no se sabe se decide al azar, ponderado
+// por esa fuerza. No es un modelo profesional, es una estimacion simple para darle contexto
+// a las predicciones de cada participante.
+function teamPower(gr,g,idx){var s=cSt(g,gr);return s.pts[idx]*3+s.gd[idx];}
+function winProb(powerA,powerB){return 1/(1+Math.pow(10,-(powerA-powerB)/8));}
+function simGroupMatch(realGr,g,mi,p,powers){
+  var real=realGr[g]?realGr[g][mi]:null;
+  if(real&&real.h!=null&&real.a!=null)return{h:real.h,a:real.a};
+  var pHomeWin=(1-0.24)*winProb(powers[p[0]],powers[p[1]]),pAwayWin=1-0.24-pHomeWin;
+  var r=Math.random(),wg,lg;
+  if(r<pHomeWin){wg=1+Math.floor(Math.random()*2);lg=Math.floor(Math.random()*wg);return{h:wg,a:lg};}
+  if(r<pHomeWin+pAwayWin){wg=1+Math.floor(Math.random()*2);lg=Math.floor(Math.random()*wg);return{h:lg,a:wg};}
+  var dg=Math.floor(Math.random()*2);return{h:dg,a:dg};
+}
+function simulatePodioOnce(){
+  var realGr=AppState.rGr,realKo=AppState.rKo;
+  var simGr={};
+  GS.forEach(function(g){
+    var powers=[0,1,2,3].map(function(idx){return teamPower(realGr,g,idx);});
+    simGr[g]=MU.map(function(p,mi){return simGroupMatch(realGr,g,mi,p,powers);});
+  });
+  var sts={};GS.forEach(function(g){sts[g]=cSt(g,simGr).order;});
+  var qg=rawThirds(simGr).slice(0,8).map(function(t){return t.g;});
+  var asgn=assignThirds(qg);
+  var h2i={E:1,I:4,A:6,L:7,D:8,G:9,B:12,K:14};
+  var tm={};
+  Object.keys(asgn).forEach(function(host){
+    var tg=asgn[host],idx=h2i[host],ti=sts[tg]?sts[tg][2]:undefined;
+    tm[idx]=ti!==undefined?{g:tg,idx:ti}:null;
+  });
+  function resolveTeam(sel,i){
+    if(!sel)return null;
+    if(sel.tf)return tm[i]||null;
+    var idx=sts[sel.g]?sts[sel.g][sel.r]:undefined;
+    return idx!==undefined?{g:sel.g,idx:idx}:null;
+  }
+  function powOf(team){return team?teamPower(realGr,team.g,team.idx):0;}
+  function nameOf(team){return team?TEAMS[team.g][team.idx].n:null;}
+  function decideOrReal(realRound,i,teamH,teamA){
+    var k=realRound?realRound[i]:null;
+    if(k&&k.w)return k.w;
+    if(!teamH||!teamA)return null;
+    return Math.random()<winProb(powOf(teamH),powOf(teamA))?'h':'a';
+  }
+  function winnerOf(m){return!m.w?null:(m.w==='h'?m.h:m.a);}
+  function loserOf(m){return!m.w?null:(m.w==='h'?m.a:m.h);}
+  var r32=R32.map(function(d,i){
+    var h=resolveTeam(d.h,i),a=resolveTeam(d.a,i);
+    return{h:h,a:a,w:decideOrReal(realKo.r32,i,h,a)};
+  });
+  var r16=R16P.map(function(p,i){
+    var h=winnerOf(r32[p[0]]),a=winnerOf(r32[p[1]]);
+    return{h:h,a:a,w:decideOrReal(realKo.r16,i,h,a)};
+  });
+  var qf=QFP_REAL.map(function(p,i){
+    var h=winnerOf(r16[p[0]]),a=winnerOf(r16[p[1]]);
+    return{h:h,a:a,w:decideOrReal(realKo.qf,i,h,a)};
+  });
+  var sf=SFP.map(function(p,i){
+    var h=winnerOf(qf[p[0]]),a=winnerOf(qf[p[1]]);
+    return{h:h,a:a,w:decideOrReal(realKo.sf,i,h,a)};
+  });
+  var finH=winnerOf(sf[0]),finA=winnerOf(sf[1]);
+  var finW=decideOrReal(realKo.final,0,finH,finA);
+  var thH=loserOf(sf[0]),thA=loserOf(sf[1]);
+  var thW=decideOrReal(realKo.third,0,thH,thA);
+  return[
+    nameOf(finW==='h'?finH:finW==='a'?finA:null),
+    nameOf(finW==='h'?finA:finW==='a'?finH:null),
+    nameOf(thW==='h'?thH:thW==='a'?thA:null),
+    nameOf(thW==='h'?thA:thW==='a'?thH:null)
+  ];
+}
+// Corre `nSims` simulaciones del resto del torneo y devuelve:
+// - posProb[nombreEquipo] = [probCampeon,probSubcampeon,prob3ro,prob4to] (0 a 1)
+// - jointProb(podio) = probabilidad de acertar las 4 posiciones exactas de ese podio a la vez
+export function runPodiumSimulation(nSims){
+  nSims=nSims||1500;
+  var posCounts={},results=[];
+  for(var s=0;s<nSims;s++){
+    var podio=simulatePodioOnce();
+    results.push(podio);
+    podio.forEach(function(name,pos){
+      if(!name)return;
+      if(!posCounts[name])posCounts[name]=[0,0,0,0];
+      posCounts[name][pos]++;
+    });
+  }
+  var posProb={};
+  Object.keys(posCounts).forEach(function(name){posProb[name]=posCounts[name].map(function(c){return c/nSims;});});
+  function jointProb(podio){
+    if(!podio||podio.some(function(t){return!t;}))return null;
+    var names=podio.map(function(t){return t.n;}),hits=0;
+    results.forEach(function(r){if(r[0]===names[0]&&r[1]===names[1]&&r[2]===names[2]&&r[3]===names[3])hits++;});
+    return hits/nSims;
+  }
+  return{posProb:posProb,jointProb:jointProb,nSims:nSims};
+}

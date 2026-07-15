@@ -206,7 +206,7 @@ export async function renderPodiosTab(){
       if(!t){h+='<div class="ptpos unk"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">?</div><div class="ptpos-nm">-</div><div class="ptpos-st">-</div></div>';return;}
       var st3=teamPosStatus(el,t.n,pi),pW=rp[pi]&&rp[pi].n===t.n,pL=rp[pi]&&rp[pi].n!==t.n;
       var cls2=pW?'won':st3||pL?'dead':'alive';
-      var st2=pW?'Acerto':st3==='out'?'Eliminado':(st3==='noTop2'||pL)?'Pos. perdida':'Sigue vivo';
+      var st2=pW?'Acerto':st3==='out'?'Eliminado':(st3==='noTop2'||st3==='noBottom2'||pL)?'Pos. perdida':'Sigue vivo';
       h+='<div class="ptpos '+cls2+'"><div class="ptpos-num" style="color:'+pc[pi]+'">'+(pi+1)+'°</div><div class="ptpos-fl">'+flagImg(t.f,24,t.n)+'</div><div class="ptpos-nm">'+t.n+'</div><div class="ptpos-st">'+st2+'</div></div>';
     });
     h+='</div>';

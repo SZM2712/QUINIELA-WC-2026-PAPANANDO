@@ -198,13 +198,16 @@ export function realQuartersMap(rb){
   return out;
 }
 // El perdedor de semifinal NO esta eliminado del torneo (juega el partido por el 3er lugar):
-// sigue pudiendo ser 3° o 4°, pero ya no puede ser campeón ni subcampeón. `el.out` = equipos
-// realmente fuera del torneo (perdieron en Cuartos o antes); `el.noTop2` = ademas de esos,
-// los perdedores de semifinal (bloqueados solo para las posiciones 0/1).
+// sigue pudiendo ser 3° o 4°, pero ya no puede ser campeón ni subcampeón. Simetricamente, el
+// GANADOR de semifinal (finalista) ya no puede ser 3° ni 4° (solo campeón o subcampeón).
+// `el.out` = equipos realmente fuera del torneo (perdieron en Cuartos o antes); `el.noTop2`
+// = ademas de esos, los perdedores de semifinal (bloqueados solo en 0/1); `el.noBottom2` =
+// los ganadores de semifinal / finalistas (bloqueados solo en 2/3).
 export function teamPosStatus(el,teamName,pos){
   if(!teamName||!el)return null;
   if(el.out&&el.out.has(teamName))return'out';
   if((pos===0||pos===1)&&el.noTop2&&el.noTop2.has(teamName))return'noTop2';
+  if((pos===2||pos===3)&&el.noBottom2&&el.noBottom2.has(teamName))return'noBottom2';
   return null;
 }
 export function podioFeasibility(podio,qmap,el){
@@ -272,10 +275,14 @@ export function getRlE(){
     var bk=res[r],ks=rKo[r]||[];
     bk.forEach(function(m,i){var k=ks[i];if(!k||!k.w||!m.h||!m.a)return;el.add((k.w==='h'?m.a:m.h).n);});
   });
-  var noTop2=new Set(el);
+  var noTop2=new Set(el),noBottom2=new Set();
   var sfBk=res.sf||[],sfKs=rKo.sf||[];
-  sfBk.forEach(function(m,i){var k=sfKs[i];if(!k||!k.w||!m.h||!m.a)return;noTop2.add((k.w==='h'?m.a:m.h).n);});
-  return {out:el,noTop2:noTop2};
+  sfBk.forEach(function(m,i){
+    var k=sfKs[i];if(!k||!k.w||!m.h||!m.a)return;
+    noTop2.add((k.w==='h'?m.a:m.h).n);     // perdedor: ya no puede ser campeón/subcampeón
+    noBottom2.add((k.w==='h'?m.h:m.a).n);  // ganador (finalista): ya no puede ser 3°/4°
+  });
+  return {out:el,noTop2:noTop2,noBottom2:noBottom2};
 }
 
 // Carga los resultados reales (ingresados por el admin) en el estado compartido AppState.rGr/rKo.

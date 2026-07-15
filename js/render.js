@@ -1,6 +1,6 @@
 // Renderizado de DOM: grupos, eliminatorias, podio, tabla de posiciones publica y aciertos.
 import {GS,MU,TEAMS,R32,R16P,R16V,QFP_REAL,QFV,SFP,SFV,FEE,CUR,PPTS,MSTART} from './data.js';
-import {cSt,calcQualStatus,gBT,buildBkt,rebuildBkt,deriveUP,getRlP,getRlE,podioFeasibility,realQuartersMap,placedInR32,confirmedThirds,loadRD,computeAciertos,teamPosStatus,runPodiumSimulation} from './logic.js';
+import {cSt,calcQualStatus,gBT,buildBkt,rebuildBkt,deriveUP,getRlP,getRlE,podioFeasibility,realQuartersMap,placedInR32,confirmedThirds,loadRD,computeAciertos,teamPosStatus,runPodiumSimulation,computeWinProbabilities} from './logic.js';
 import {AppState} from './state.js';
 import {stG,getAllUsers} from './firebase.js';
 import {esc} from './esc.js';
@@ -204,8 +204,17 @@ export async function renderPodiosTab(){
     });
     return{name:u.name,pts:pts2,maxPos:maxPos,podio:podio,feas:podioFeasibility(podio,qmapP,el)};
   }).sort(function(a,b){return b.maxPos-a.maxPos||b.pts-a.pts;});
+  var winRank=computeWinProbabilities(sim.results,ranked);
 
-  var h='<div class="ibox" style="margin-bottom:10px;">Ordenado por el maximo de puntos que cada quien aun puede alcanzar segun los resultados reales (no solo lo ya confirmado). El % "Bracket" es el maximo de posiciones del podio que pueden lograrse a la vez segun en que lado del cuadro proyectado cae cada equipo.</div>';
+  var h='<div class="evol-msec-title" style="margin-top:0;">&#127942; Probabilidad de Ganar</div>';
+  h+='<div class="ibox">Probabilidad simulada de terminar con MAS puntos que cualquier otro participante, corriendo el resto del torneo miles de veces al azar (ponderado por el desempeño real en grupos).</div>';
+  h+='<table class="rtbl" style="margin-bottom:14px;"><thead><tr><th>Pos</th><th>Participante</th><th class="rr">Prob. de ganar</th></tr></thead><tbody>';
+  winRank.forEach(function(r,i){
+    var medal=i===0?'&#129351;':i===1?'&#129352;':i===2?'&#129353;':(i+1);
+    h+='<tr><td style="font-family:\'Bebas Neue\',sans-serif;font-size:'+(i<3?'18':'13')+'px;color:'+(i<3?'var(--gold)':'var(--muted)')+';">'+medal+'</td><td style="font-weight:700;">'+esc(r.name)+'</td><td style="text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:16px;color:var(--gold);">'+fmtPct(r.prob)+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='<div class="ibox" style="margin-bottom:10px;">Ordenado por el maximo de puntos que cada quien aun puede alcanzar segun los resultados reales (no solo lo ya confirmado). El % "Bracket" es el maximo de posiciones del podio que pueden lograrse a la vez segun en que lado del cuadro proyectado cae cada equipo.</div>';
   ranked.forEach(function(u){
     var maxLabel=u.maxPos>u.pts?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(max '+u.maxPos+')</span>':'';
     var f=u.feas,fcol=f.pct>=100?'#2a8a4c':f.pct>=50?'#c9a227':'#e05050';

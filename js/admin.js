@@ -2,7 +2,7 @@
 import {GS,MU,TEAMS,R32,R16P,R16V,QFP_REAL,QFV,SFP,SFV,PPTS,APAS} from './data.js';
 import {AppState} from './state.js';
 import {stG,stS,stU,stD,getAllUsers,addIdx,delIdx,rawGetAll} from './firebase.js';
-import {cSt,buildBkt,deriveUP,getRlE,getRlP,rawThirds,recRS,loadRD,initRS,teamPosStatus,runPodiumSimulation} from './logic.js';
+import {cSt,buildBkt,deriveUP,getRlE,getRlP,rawThirds,recRS,loadRD,initRS,teamPosStatus,runPodiumSimulation,computeWinProbabilities} from './logic.js';
 import {esc} from './esc.js';
 import {flagImg,buildUBkt,fmtPct} from './render.js';
 
@@ -49,6 +49,7 @@ export async function renderAdmin(){
     return{data:u,name:u.name,pts:pts2,maxPos:maxPos,podio:podio,locked:u.locked};
   }).sort(function(a,b){return b.pts-a.pts;});
   var topP=ranked.length?ranked[0].pts:0;
+  var winRank=computeWinProbabilities(sim.results,ranked);
   var allT=Object.values(TEAMS).flat();
   var h='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:7px;">';
   h+='<div style="font-family:\'Bebas Neue\';font-size:22px;letter-spacing:2px;color:var(--purple)">Admin Papanando</div>';
@@ -80,6 +81,12 @@ export async function renderAdmin(){
   h+='<div class="asec"><div class="asectitle">Podio Oficial</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:7px;margin-bottom:9px;">';
   [0,1,2,3].forEach(function(pos){h+='<div style="background:var(--panel);border:1px solid var(--border);padding:9px;"><div style="font-size:9px;letter-spacing:1px;color:'+pc[pos]+';text-transform:uppercase;margin-bottom:5px;">'+['1er','2do','3ro','4to'][pos]+' '+PPTS[pos]+'pts</div><select id="op-'+pos+'" style="width:100%;padding:5px;background:#1a2030;border:1px solid var(--border);color:var(--text);font-family:\'Barlow Condensed\',sans-serif;font-size:12px;"><option value="">Sin definir</option>'+allT.map(function(t){return'<option value="'+t.n+'"'+(offR[pos]===t.n?' selected':'')+'>'+t.n+'</option>';}).join('')+'</select></div>';});
   h+='</div><button class="cbtn" onclick="saveOP()">Guardar Podio Oficial</button><span id="op-msg" style="font-size:11px;color:#2a8a4c;margin-left:9px;"></span></div>';
+  h+='<div class="asec"><div class="asectitle">&#127942; Probabilidad de Ganar</div><table class="rtbl" style="margin-bottom:10px;"><thead><tr><th>Pos</th><th>Participante</th><th class="rr">Prob. de ganar</th></tr></thead><tbody>';
+  winRank.forEach(function(r,i){
+    var medal=i===0?'&#129351;':i===1?'&#129352;':i===2?'&#129353;':(i+1);
+    h+='<tr><td style="font-family:\'Bebas Neue\',sans-serif;font-size:'+(i<3?'18':'13')+'px;color:'+(i<3?'var(--gold)':'var(--muted)')+';">'+medal+'</td><td style="font-weight:700;">'+esc(r.name)+'</td><td style="text-align:right;font-family:\'Bebas Neue\',sans-serif;font-size:16px;color:var(--gold);">'+fmtPct(r.prob)+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
   h+='<div class="asec"><div class="asectitle">Podio de Todos ('+users.length+' participantes)</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;">';
   if(!ranked.length)h+='<div style="text-align:center;padding:16px;color:var(--muted);">Nadie registrado aun.</div>';
   ranked.forEach(function(u){

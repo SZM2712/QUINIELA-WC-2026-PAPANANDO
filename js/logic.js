@@ -367,7 +367,16 @@ function simGroupMatch(realGr,g,mi,p,powers){
   if(r<pHomeWin+pAwayWin){wg=1+Math.floor(Math.random()*2);lg=Math.floor(Math.random()*wg);return{h:lg,a:wg};}
   var dg=Math.floor(Math.random()*2);return{h:dg,a:dg};
 }
-function simulatePodioOnce(){
+function groupsFullyDecided(realGr){
+  return GS.every(function(g){
+    return MU.every(function(p,mi){
+      var s=realGr[g]?realGr[g][mi]:null;
+      return s&&s.h!=null&&s.a!=null;
+    });
+  });
+}
+function simulatePodioOnce(pick){
+  pick=pick||function(){return Math.random()<0.5?'h':'a';};
   var realGr=AppState.rGr,realKo=AppState.rKo;
   var simGr={};
   GS.forEach(function(g){
@@ -392,12 +401,14 @@ function simulatePodioOnce(){
   function nameOf(team){return team?TEAMS[team.g][team.idx].n:null;}
   // Un partido de eliminacion directa que aun no se juega es 50/50: el desempeño en
   // fase de grupos (usado arriba solo para simular grupos que aun no terminan) no predice
-  // quien gana un partido unico y definitivo como una final o el tercer lugar.
+  // quien gana un partido unico y definitivo como una final o el tercer lugar. `pick()` decide
+  // ese 50/50: al azar para Monte Carlo, o una secuencia fija cuando se enumeran todas las
+  // combinaciones posibles exactamente (ver enumerateExactPodios).
   function decideOrReal(realRound,i,teamH,teamA){
     var k=realRound?realRound[i]:null;
     if(k&&k.w)return k.w;
     if(!teamH||!teamA)return null;
-    return Math.random()<0.5?'h':'a';
+    return pick();
   }
   function winnerOf(m){return!m.w?null:(m.w==='h'?m.h:m.a);}
   function loserOf(m){return!m.w?null:(m.w==='h'?m.a:m.h);}
@@ -428,30 +439,58 @@ function simulatePodioOnce(){
     nameOf(thW==='h'?thA:thW==='a'?thH:null)
   ];
 }
-// Corre `nSims` simulaciones del resto del torneo y devuelve:
+// Cuando la fase de grupos ya termino, lo unico que falta decidir son partidos de eliminacion
+// directa (cada uno 50/50, ver decideOrReal). Si quedan pocos, en vez de aproximar por muestreo
+// Monte Carlo es mas exacto enumerar TODAS las combinaciones posibles (todas igual de probables)
+// y usarlas como universo completo en vez de una muestra al azar.
+var EXACT_MAX_UNDECIDED=12; // 2^12=4096 combinaciones; mas que eso empieza a notarse en el render (movil incluido)
+function countUndecidedKO(){
+  var n=0;
+  simulatePodioOnce(function(){n++;return'h';});
+  return n;
+}
+function enumerateExactPodios(n){
+  var total=Math.pow(2,n),out=[];
+  for(var c=0;c<total;c++){
+    var bit=0;
+    out.push(simulatePodioOnce(function(){var b=(c>>bit)&1;bit++;return b?'a':'h';}));
+  }
+  return out;
+}
+// Devuelve todos los posibles podios finales (exactos si quedan pocos partidos de eliminacion
+// directa por jugar, o una muestra Monte Carlo de `nSims` si aun falta mucho torneo por
+// definirse) y a partir de eso:
 // - posProb[nombreEquipo] = [probCampeon,probSubcampeon,prob3ro,prob4to] (0 a 1)
 // - jointProb(podio) = probabilidad de acertar las 4 posiciones exactas de ese podio a la vez
 export function runPodiumSimulation(nSims){
   nSims=nSims||1500;
-  var posCounts={},results=[];
-  for(var s=0;s<nSims;s++){
-    var podio=simulatePodioOnce();
-    results.push(podio);
+  var results=null;
+  if(groupsFullyDecided(AppState.rGr)){
+    var n=countUndecidedKO();
+    if(n<=EXACT_MAX_UNDECIDED)results=enumerateExactPodios(n);
+  }
+  if(!results){
+    results=[];
+    for(var s=0;s<nSims;s++)results.push(simulatePodioOnce());
+  }
+  var total=results.length;
+  var posCounts={};
+  results.forEach(function(podio){
     podio.forEach(function(name,pos){
       if(!name)return;
       if(!posCounts[name])posCounts[name]=[0,0,0,0];
       posCounts[name][pos]++;
     });
-  }
+  });
   var posProb={};
-  Object.keys(posCounts).forEach(function(name){posProb[name]=posCounts[name].map(function(c){return c/nSims;});});
+  Object.keys(posCounts).forEach(function(name){posProb[name]=posCounts[name].map(function(c){return c/total;});});
   function jointProb(podio){
     if(!podio||podio.some(function(t){return!t;}))return null;
     var names=podio.map(function(t){return t.n;}),hits=0;
     results.forEach(function(r){if(r[0]===names[0]&&r[1]===names[1]&&r[2]===names[2]&&r[3]===names[3])hits++;});
-    return hits/nSims;
+    return hits/total;
   }
-  return{posProb:posProb,jointProb:jointProb,nSims:nSims,results:results};
+  return{posProb:posProb,jointProb:jointProb,nSims:total,results:results};
 }
 // Ranking de probabilidad de GANAR la quiniela completa (mas puntos que cualquier otro
 // participante), usando las mismas `results` de runPodiumSimulation. En cada simulacion se

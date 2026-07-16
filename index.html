@@ -62,6 +62,7 @@
     <button class="tab" role="tab" aria-selected="false" onclick="showTab('elim',this)">Eliminatorias</button>
     <button class="tab" role="tab" aria-selected="false" onclick="showTab('podio',this)">Mi Podio</button>
     <button class="tab" role="tab" aria-selected="false" onclick="showTab('podios',this)">Podios</button>
+    <button class="tab" role="tab" aria-selected="false" onclick="showTab('escenarios',this)">Escenarios</button>
     <button class="tab" role="tab" aria-selected="false" onclick="showTab('pos',this)">Posiciones</button>
     <button class="tab" role="tab" aria-selected="false" onclick="showTab('aciertos',this)">Aciertos</button>
     <button class="tab atab" role="tab" aria-selected="false" onclick="showTab('admin',this)">Admin</button>
@@ -102,6 +103,11 @@
         <div class="pbanner" id="pbanner"></div>
         <div class="ptgrid" id="tgrid"></div>
       </div>
+    </div>
+  </div>
+  <div id="tab-escenarios" class="view" role="tabpanel">
+    <div style="max-width:1100px;margin:0 auto;padding:12px 0;">
+      <div id="escenarios-content"><div style="text-align:center;padding:20px;color:var(--muted);">Cargando...</div></div>
     </div>
   </div>
   <div id="tab-pos" class="view" role="tabpanel">

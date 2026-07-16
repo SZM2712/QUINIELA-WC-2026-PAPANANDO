@@ -464,10 +464,10 @@ function enumerateExactPodios(n){
 // - jointProb(podio) = probabilidad de acertar las 4 posiciones exactas de ese podio a la vez
 export function runPodiumSimulation(nSims){
   nSims=nSims||1500;
-  var results=null;
+  var results=null,exact=false;
   if(groupsFullyDecided(AppState.rGr)){
     var n=countUndecidedKO();
-    if(n<=EXACT_MAX_UNDECIDED)results=enumerateExactPodios(n);
+    if(n<=EXACT_MAX_UNDECIDED){results=enumerateExactPodios(n);exact=true;}
   }
   if(!results){
     results=[];
@@ -490,7 +490,7 @@ export function runPodiumSimulation(nSims){
     results.forEach(function(r){if(r[0]===names[0]&&r[1]===names[1]&&r[2]===names[2]&&r[3]===names[3])hits++;});
     return hits/total;
   }
-  return{posProb:posProb,jointProb:jointProb,nSims:total,results:results};
+  return{posProb:posProb,jointProb:jointProb,nSims:total,results:results,exact:exact};
 }
 // Ranking de probabilidad de GANAR la quiniela completa (mas puntos que cualquier otro
 // participante), usando las mismas `results` de runPodiumSimulation. En cada simulacion se
@@ -513,4 +513,27 @@ export function computeWinProbabilities(results,users){
   });
   return users.map(function(u,i){return{name:u.name,prob:wins[i]/results.length};})
     .sort(function(a,b){return b.prob-a.prob;});
+}
+// Desglose de "quien ganaria en cada escenario": recibe los `results` de runPodiumSimulation
+// (en modo exacto, cada combinacion posible aparece una sola vez) y para cada podio distinto
+// calcula los puntos de todos los participantes y quien(es) quedarian primeros. `prob` es la
+// frecuencia real de ese escenario dentro de `results` (uniforme entre todos si es modo exacto).
+export function computeScenarioBreakdown(results,users){
+  var order=[],counts={};
+  results.forEach(function(podio){
+    var key=podio.join('|');
+    if(!counts[key]){counts[key]=0;order.push(podio);}
+    counts[key]++;
+  });
+  var total=results.length;
+  return order.map(function(podio){
+    var pts=users.map(function(u){
+      var p=0;
+      (u.podio||[]).forEach(function(t,i){if(t&&podio[i]&&t.n===podio[i])p+=PPTS[i];});
+      return{name:u.name,pts:p};
+    });
+    var best=pts.length?Math.max.apply(null,pts.map(function(p){return p.pts;})):0;
+    var winners=pts.filter(function(p){return p.pts===best;}).map(function(p){return p.name;});
+    return{podio:podio,ranking:pts.slice().sort(function(a,b){return b.pts-a.pts;}),winners:winners,best:best,prob:counts[podio.join('|')]/total};
+  });
 }

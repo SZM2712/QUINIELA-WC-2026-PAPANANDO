@@ -350,11 +350,12 @@ export function fmtCd(diff){
 }
 
 // ── Simulacion Monte Carlo: probabilidad de que cada equipo llegue a cada puesto del podio ──
-// Usa el desempeño real en grupos (puntos*3 + diferencia de gol) como proxy de fuerza de cada
-// equipo. TODO resultado real ya decidido (grupos y eliminatorias, incluida Final/3er lugar si
-// ya se jugaron) se respeta tal cual; solo lo que aun no se sabe se decide al azar, ponderado
-// por esa fuerza. No es un modelo profesional, es una estimacion simple para darle contexto
-// a las predicciones de cada participante.
+// Todo resultado real ya decidido (grupos y eliminatorias, incluida Final/3er lugar si ya se
+// jugaron) se respeta tal cual. Lo que aun no se sabe se decide al azar: los partidos de grupos
+// que faltan usan el desempeño real acumulado en ese grupo (puntos*3 + diferencia de gol) como
+// proxy de fuerza, porque son varios partidos y el promedio si dice algo; los partidos de
+// eliminacion directa (incluida Final y 3er lugar) son 50/50 porque son un unico partido
+// definitorio, donde el resultado de la fase de grupos ya no predice nada util.
 function teamPower(gr,g,idx){var s=cSt(g,gr);return s.pts[idx]*3+s.gd[idx];}
 function winProb(powerA,powerB){return 1/(1+Math.pow(10,-(powerA-powerB)/8));}
 function simGroupMatch(realGr,g,mi,p,powers){
@@ -388,13 +389,15 @@ function simulatePodioOnce(){
     var idx=sts[sel.g]?sts[sel.g][sel.r]:undefined;
     return idx!==undefined?{g:sel.g,idx:idx}:null;
   }
-  function powOf(team){return team?teamPower(realGr,team.g,team.idx):0;}
   function nameOf(team){return team?TEAMS[team.g][team.idx].n:null;}
+  // Un partido de eliminacion directa que aun no se juega es 50/50: el desempeño en
+  // fase de grupos (usado arriba solo para simular grupos que aun no terminan) no predice
+  // quien gana un partido unico y definitivo como una final o el tercer lugar.
   function decideOrReal(realRound,i,teamH,teamA){
     var k=realRound?realRound[i]:null;
     if(k&&k.w)return k.w;
     if(!teamH||!teamA)return null;
-    return Math.random()<winProb(powOf(teamH),powOf(teamA))?'h':'a';
+    return Math.random()<0.5?'h':'a';
   }
   function winnerOf(m){return!m.w?null:(m.w==='h'?m.h:m.a);}
   function loserOf(m){return!m.w?null:(m.w==='h'?m.a:m.h);}

@@ -1,6 +1,6 @@
 // Renderizado de DOM: grupos, eliminatorias, podio, tabla de posiciones publica y aciertos.
 import {GS,MU,TEAMS,R32,R16P,R16V,QFP_REAL,QFV,SFP,SFV,FEE,CUR,PPTS,MSTART} from './data.js';
-import {cSt,calcQualStatus,gBT,buildBkt,rebuildBkt,deriveUP,getRlP,getRlE,podioFeasibility,realQuartersMap,placedInR32,confirmedThirds,loadRD,computeAciertos,teamPosStatus,runPodiumSimulation,computeWinProbabilities} from './logic.js';
+import {cSt,calcQualStatus,gBT,buildBkt,rebuildBkt,deriveUP,getRlP,getRlE,podioFeasibility,realQuartersMap,placedInR32,confirmedThirds,loadRD,computeAciertos,teamPosStatus,runPodiumSimulation,computeWinProbabilities,computeScenarioBreakdown} from './logic.js';
 import {AppState} from './state.js';
 import {stG,getAllUsers} from './firebase.js';
 import {esc} from './esc.js';
@@ -207,7 +207,7 @@ export async function renderPodiosTab(){
   var winRank=computeWinProbabilities(sim.results,ranked);
 
   var h='<div class="evol-msec-title" style="margin-top:0;">&#127942; Probabilidad de Ganar</div>';
-  h+='<div class="ibox">Probabilidad simulada de terminar con MAS puntos que cualquier otro participante, corriendo el resto del torneo miles de veces al azar (ponderado por el desempeño real en grupos).</div>';
+  h+='<div class="ibox">Probabilidad de terminar con MAS puntos que cualquier otro participante'+(sim.exact?', calculando exactamente los '+sim.nSims+' escenarios posibles que quedan para lo que falta del torneo (ver pesta&ntilde;a Escenarios).':', corriendo el resto del torneo miles de veces al azar (quedan demasiados partidos por definir para calcularlo exacto).')+'</div>';
   h+='<table class="rtbl" style="margin-bottom:14px;"><thead><tr><th>Pos</th><th>Participante</th><th class="rr">Prob. de ganar</th></tr></thead><tbody>';
   winRank.forEach(function(r,i){
     var medal=i===0?'&#129351;':i===1?'&#129352;':i===2?'&#129353;':(i+1);
@@ -232,6 +232,50 @@ export async function renderPodiosTab(){
     });
     h+='</div>';
     if(bracketReady&&f.pct<100&&f.reasons.length)h+='<div style="padding:4px 9px 8px;font-size:10px;color:var(--muted);line-height:1.4;">&#9888;&#65039; Limita el podio: '+f.reasons.slice(0,2).join('; ')+'.</div>';
+    h+='</div>';
+  });
+  cont.innerHTML=h;
+}
+
+// Cuantos escenarios como maximo se listan uno por uno en la pestaña Escenarios. Con pocos
+// partidos de eliminacion directa pendientes (ej. solo Final y 3er lugar) esto lista todos;
+// si aun quedan demasiados partidos por jugar, se muestra un aviso en vez de una lista enorme.
+var SCENARIO_DISPLAY_MAX=32;
+export async function renderEscenariosTab(){
+  var started=Date.now()>=MSTART.getTime();
+  var cont=document.getElementById('escenarios-content');
+  if(!cont)return;
+  if(!started){cont.innerHTML='<div style="text-align:center;padding:40px 20px;"><div style="font-size:48px;margin-bottom:12px;">&#9203;</div><div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;letter-spacing:3px;color:var(--gold);">Disponible cuando arranque el Mundial</div></div>';return;}
+  await loadRD();
+  var sim=runPodiumSimulation();
+  var users=await getAllUsers();
+  if(!users.length){cont.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);">Aun no hay participantes.</div>';return;}
+  var ranked=users.map(function(u){return{name:u.name,podio:deriveUP(u)};});
+  var scenarios=computeScenarioBreakdown(sim.results,ranked);
+  if(!sim.exact||scenarios.length>SCENARIO_DISPLAY_MAX){
+    cont.innerHTML='<div class="ibox">Todavia quedan demasiados partidos de eliminacion directa por definir para listar cada escenario posible uno por uno. Esta vista se activa sola cuando queden pocos partidos pendientes (por ejemplo, cuando ya solo falten la Final y el partido por el 3er lugar). Mientras tanto, revisa las probabilidades en la pesta&ntilde;a Podios.</div>';
+    return;
+  }
+  var pc=['var(--gold)','#9aa0aa','#a07040','var(--muted)'];
+  var allT=Object.values(TEAMS).flat();
+  var h='<div class="ibox">Con los partidos de eliminacion directa ya jugados fijos, queda'+(scenarios.length===1?'':'n')+' exactamente '+scenarios.length+' escenario'+(scenarios.length===1?'':'s')+' posible'+(scenarios.length===1?'':'s')+' para el resto del torneo'+(scenarios.length>1?' (cada uno con '+fmtPct(scenarios[0].prob)+' de probabilidad)':'')+'.</div>';
+  scenarios.forEach(function(s,si){
+    h+='<div class="asec" style="background:var(--panel);border:1px solid var(--border);padding:10px;">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px;">';
+    h+='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:15px;letter-spacing:1px;color:var(--text);">Escenario '+(si+1)+'</div>';
+    h+='<span style="font-size:10px;color:var(--gold);border:1px solid var(--gold);padding:1px 6px;">'+fmtPct(s.prob)+' de probabilidad</span>';
+    h+='</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:6px;margin-bottom:8px;">';
+    s.podio.forEach(function(name,pos){
+      var t=name?allT.find(function(x){return x.n===name;}):null;
+      h+='<div style="background:var(--bg);border:1px solid var(--border);padding:6px;text-align:center;">'+
+        '<div style="font-size:9px;letter-spacing:1px;color:'+pc[pos]+';text-transform:uppercase;">'+['1ro','2do','3ro','4to'][pos]+'</div>'+
+        (t?flagImg(t.f,22,t.n):'')+
+        '<div style="font-size:11px;font-weight:700;margin-top:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">'+esc(name||'?')+'</div>'+
+        '</div>';
+    });
+    h+='</div>';
+    h+='<div style="font-size:12px;"><span style="color:var(--muted);">Ganaria la quiniela: </span><span style="color:var(--gold);font-weight:700;">'+esc(s.winners.join(', '))+'</span> <span style="color:var(--muted);">('+s.best+'pts)</span></div>';
     h+='</div>';
   });
   cont.innerHTML=h;
@@ -387,6 +431,7 @@ export function showTab(t,btn){
   if(btn){btn.classList.add('active');btn.setAttribute('aria-selected','true');}
   if(t==='podio')renderPodium();
   if(t==='podios')renderPodiosTab();
+  if(t==='escenarios')renderEscenariosTab();
   if(t==='pos')renderPosPublic();
   if(t==='aciertos')renderAciertos();
   if(t==='admin')window.__renderAdmin&&window.__renderAdmin();

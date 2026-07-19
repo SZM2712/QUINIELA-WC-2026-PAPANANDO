@@ -237,6 +237,29 @@ export async function renderPodiosTab(){
   cont.innerHTML=h;
 }
 
+// Banner de "campeon(es) proyectado(s)" en la pantalla de inicio, antes de iniciar sesion, para
+// que se vea de un vistazo quien va ganando sin tener que entrar. Muestra a todos empatados si
+// hay varios participantes con la misma probabilidad maxima de ganar.
+export async function renderChampionBanner(){
+  var box=document.getElementById('champ-banner');if(!box)return;
+  if(Date.now()<MSTART.getTime()){box.style.display='none';return;}
+  await loadRD();
+  var sim=runPodiumSimulation();
+  var users=await getAllUsers();
+  if(!users.length){box.style.display='none';return;}
+  var ranked=users.map(function(u){return{name:u.name,podio:deriveUP(u)};});
+  var winRank=computeWinProbabilities(sim.results,ranked);
+  if(!winRank.length||winRank[0].prob<=0){box.style.display='none';return;}
+  var top=winRank[0].prob;
+  var leaders=winRank.filter(function(r){return Math.abs(r.prob-top)<1e-9;});
+  var lbl=leaders.length>1?'&#127942; Campeones (empatados)':'&#127942; Campeon proyectado';
+  var names=leaders.map(function(r){return esc(r.name);}).join(' &middot; ');
+  box.innerHTML='<div style="font-size:9px;letter-spacing:2px;color:var(--gold);text-transform:uppercase;margin-bottom:6px;text-align:center;">'+lbl+'</div>'+
+    '<div style="text-align:center;font-family:\'Bebas Neue\',sans-serif;font-size:'+(leaders.length>2?'16':'20')+'px;letter-spacing:1px;color:var(--text);">'+names+'</div>'+
+    '<div style="text-align:center;font-size:10px;color:var(--muted);margin-top:3px;">'+fmtPct(top)+' de probabilidad de ganar la quiniela</div>';
+  box.style.display='block';
+  setTimeout(renderChampionBanner,60000);
+}
 // Cuantos escenarios como maximo se listan uno por uno en la pestaña Escenarios. Con pocos
 // partidos de eliminacion directa pendientes (ej. solo Final y 3er lugar) esto lista todos;
 // si aun quedan demasiados partidos por jugar, se muestra un aviso en vez de una lista enorme.

@@ -3,7 +3,7 @@ import {PFX,APAS,DEADLINE,SCHEDULE,KO_SCHEDULE,TEAMS,GS,MU} from './data.js';
 import {AppState} from './state.js';
 import {stG,stU,addIdx} from './firebase.js';
 import {initS,initRS,recSt,rebuildBkt,fmtCd,loadRD} from './logic.js';
-import {renderGG,renderGroup,renderKO,updKO,renderPodium,flagImg,showTab,toggleUBkt} from './render.js';
+import {renderGG,renderGroup,renderKO,updKO,renderPodium,flagImg,showTab,toggleUBkt,renderChampionBanner} from './render.js';
 import * as Admin from './admin.js';
 import {initReminders} from './features/notifications.js';
 
@@ -260,7 +260,7 @@ window.nukeAll=Admin.nukeAll;
 window.expCSV=Admin.expCSV;
 
 document.addEventListener('DOMContentLoaded',function(){
-  tickCd();renderMatchday();
+  tickCd();renderMatchday();renderChampionBanner();
   var s=localStorage.getItem(PFX+'lc');if(s)document.getElementById('lpass').value=s;
   document.getElementById('lpass').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
 });
